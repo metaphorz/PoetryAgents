@@ -11,10 +11,28 @@ except ImportError:  # pragma: no cover - environment might not have openai
 
 
 def _call_o3(prompt: str, model: str = "o3") -> str:
-    """Call an external LLM named 'o3' to generate text."""
+    """Call an external LLM named 'o3' to generate text.
+
+    This helper supports both the old (<1.0) and new (>=1.0) versions of the
+    ``openai`` package. If ``openai`` is unavailable, a stubbed response is
+    returned. The function is deliberately simple, as tests may run in an
+    environment without network access or valid credentials.
+    """
+
     if openai is None:
-        # Fallback stub if OpenAI package is unavailable
+        # Fallback stub if the OpenAI package is not installed.
         return f"[o3 stubbed response to: {prompt}]"
+
+    if hasattr(openai, "OpenAI"):
+        # OpenAI >= 1.0 client interface
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content.strip()
+
+    # Fallback to older 0.x style API
     response = openai.ChatCompletion.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],

@@ -97,6 +97,13 @@ This PDF includes:
 
 This feature uses the [ReportLab](https://www.reportlab.com/opensource/) Python library for PDF generation. If ReportLab is not found in your Python environment, the script will attempt to install it automatically.
 
+## OpenAI Compatibility
+
+The helper function `_call_o3` handles both the legacy `openai` API (<1.0) and
+the new client interface (>=1.0). If `openai` is not installed, it returns a
+stubbed response so the simulation can run without network access or API
+credentials.
+
 ## Poetic Form Adherence: Haiku (Experimental)
 
 The simulation has been enhanced to support specific poetic forms. Currently, the primary focus is on **Haiku** generation.
