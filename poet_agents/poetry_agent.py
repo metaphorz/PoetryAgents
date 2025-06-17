@@ -23,21 +23,21 @@ def _call_o3(prompt: str, model: str = "o3") -> str:
         # Fallback stub if the OpenAI package is not installed.
         return f"[o3 stubbed response to: {prompt}]"
 
-    try:
-        # New 1.x style client
+    if hasattr(openai, "OpenAI"):
+        # OpenAI >= 1.0 client interface
         client = openai.OpenAI()
         response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
         )
         return response.choices[0].message.content.strip()
-    except AttributeError:
-        # Old 0.x style API
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response["choices"][0]["message"]["content"].strip()
+
+    # Fallback to older 0.x style API
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response["choices"][0]["message"]["content"].strip()
 
 
 @dataclass
