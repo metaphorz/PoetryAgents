@@ -3,6 +3,7 @@
 ## Software Requirements
 
 Use Git version control by init when the project is created
+Create a .gitignore file and when pushing to GitHub, do not push the .gitignore file 
 Period requests to commit will be given by the user, so do not do this automatically
 Always work in the main branch unless requested to make a new branch, with later merge
 
@@ -47,6 +48,10 @@ The interface asks the user specific questions before generating the dialogue:
 ## Poetic Form
 
 Each poetic form has rules. These rules embed the concepts of meter and rhyme. Abide by the rules of the poetic form.
+
+Do not put in additional text such as "Here is a poem" or "I'll craft a Haiku". Just put in the poetry headed by the agent's name
+
+Always put a blank space after each verse
 
 ## Dialogue Format
 
