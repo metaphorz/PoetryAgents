@@ -3,6 +3,10 @@
 Test script for the Poetry Agent Dialogue System
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dialogue_manager import DialogueManager
 
 def test_example_scenario():
