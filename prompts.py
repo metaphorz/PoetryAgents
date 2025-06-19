@@ -18,7 +18,7 @@ def create_initial_poetry_prompt(theme: str, form: str, length: int) -> str:
         if length == 1:
             return f"Write a haiku (5-7-5 syllables) about {theme}. Return only the 3-line haiku with no explanatory text. Put a blank line after the haiku."
         else:
-            return f"Write {length} haiku stanzas about {theme}. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Return only the haiku verses with no explanatory text. Put a blank line after each stanza."
+            return f"Write {length} haiku stanzas about {theme}. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Format as:\n\nFirst haiku (3 lines)\n\nSecond haiku (3 lines)\n\nReturn only the haiku verses with no explanatory text. Put a blank line after each individual haiku stanza."
     
     elif form == "prose":
         return f"Write a {length}-line prose poem about {theme}. Use free verse with natural language flow. Return only the poem with no explanatory text. Put a blank line after the poem."
@@ -43,7 +43,7 @@ def create_response_poetry_prompt(agent_name: str, previous_poetry: str, form: s
         if length == 1:
             base_prompt = f"You are {agent_name}. Respond to this poetry with a haiku (5-7-5 syllables). Incorporate elements, words, or themes from the previous poetry:\n\n{previous_poetry}\n\nReturn only the 3-line haiku with no explanatory text. Put a blank line after the haiku."
         else:
-            base_prompt = f"You are {agent_name}. Respond to this poetry with {length} haiku stanzas. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Incorporate elements, words, or themes from the previous poetry:\n\n{previous_poetry}\n\nReturn only the haiku verses with no explanatory text. Put a blank line after each stanza."
+            base_prompt = f"You are {agent_name}. Respond to this poetry with {length} haiku stanzas. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Incorporate elements, words, or themes from the previous poetry:\n\n{previous_poetry}\n\nFormat as:\n\nFirst haiku (3 lines)\n\nSecond haiku (3 lines)\n\nReturn only the haiku verses with no explanatory text. Put a blank line after each individual haiku stanza."
     
     elif form == "prose":
         base_prompt = f"You are {agent_name}. Respond to this poetry with a {length}-line prose poem. Use free verse and incorporate elements, words, or themes from the previous poetry:\n\n{previous_poetry}\n\nReturn only the poem with no explanatory text. Put a blank line after the poem."
