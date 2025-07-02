@@ -151,3 +151,6 @@ message_to_*.json
 
 # Generated poetry outputs
 outputs/*.md
+
+# Test files (local development only)
+tests/
