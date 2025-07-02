@@ -148,3 +148,6 @@ Thumbs.db
 .env.local
 .env.*.local
 message_to_*.json
+
+# Generated poetry outputs
+outputs/*.md

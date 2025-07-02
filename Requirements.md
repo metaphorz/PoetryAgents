@@ -4,7 +4,7 @@
 
 Use Git version control by init when the project is created
 Create a .gitignore file and when pushing to GitHub, do not push the .gitignore file 
-Period requests to commit will be given by the user, so do not do this automatically
+Period requests to commit will be given by the user, so do not run git commit automatically
 Always work in the main branch unless requested to make a new branch, with later merge
 
 When requested to refactor or test by the user, proceed with minimal user interaction
@@ -51,7 +51,7 @@ Each poetic form has rules. These rules embed the concepts of meter and rhyme. A
 
 Do not put in additional text such as "Here is a poem" or "I'll craft a Haiku". Just put in the poetry headed by the agent's name
 
-Always put a blank space after each verse
+Always put a blank space after each verse, and if multiple poems are in an agent response, put a blank space after each poem (e.g. for haikus)
 
 ## Dialogue Format
 
