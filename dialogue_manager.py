@@ -1,48 +1,46 @@
 """
 Dialogue Manager for orchestrating poetry agent conversations.
+Refactored to use factory pattern and extracted services.
 """
 
 import os
+import datetime
+import re
 from typing import List, Dict, Any
+from llm_factory import LLMClientFactory
+from enhancement_service import EnhancementService
 from llm_client import LLMClient
-from gemini_client import GeminiClient
-from openai_client import OpenAIClient
-from openrouter_client import OpenRouterClient
 from prompts import create_initial_poetry_prompt, create_response_poetry_prompt, create_title_prompt
 from character_names import get_random_names, get_character_info
+from exceptions import ConfigurationError, APIError
 
 class DialogueManager:
     """Manages the poetry dialogue between agents."""
     
     def __init__(self):
         """Initialize the dialogue manager."""
-        self.claude_client = None
-        self.gemini_client = None
         self.agents = []
         self.conversation_history = []
+        self.enhancement_service = EnhancementService()
     
     def generate_dialogue(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generate a complete poetry dialogue based on configuration.
         
         Args:
-            config: Dictionary containing theme, num_agents, form, poem_length, conversation_length
+            config: Configuration dictionary
             
         Returns:
             Dictionary containing title, agents, and dialogue history
         """
-        # Initialize clients with user-selected models
-        self._initialize_clients(config)
+        # Validate configuration
+        LLMClientFactory.validate_configuration(config)
         
-        # Generate title from theme using Claude (default to first available model)
-        title_prompt = create_title_prompt(config['theme'])
-        if not self.claude_client:
-            # Initialize a default Claude client for title generation
-            self.claude_client = LLMClient()
-        title = self.claude_client.generate_poetry(title_prompt, max_tokens=20)
+        # Generate title using default Claude client
+        title = self._generate_title(config['theme'])
         
         # Generate ASCII art for the theme
-        ascii_art = self.generate_ascii_art(config['theme'])
+        ascii_art = self.enhancement_service.generate_ascii_art(config['theme'])
         
         # Get agent names
         agent_names = get_random_names(config['num_agents'])
@@ -77,55 +75,16 @@ class DialogueManager:
                         config['poem_length']
                     )
                 
-                # Use user-specified LLM and model for each agent
-                if agent_index == 0:
-                    # First agent uses user-selected LLM and model
-                    if config.get('agent1_llm', 'Claude') == 'OpenRouter':
-                        openrouter_search = config.get('agent1_openrouter_search', 'Claude')
-                        openrouter_client = OpenRouterClient(openrouter_search)
-                        poetry = openrouter_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"OpenRouter ({openrouter_search})"
-                    elif config.get('agent1_llm', 'Claude') == 'Claude':
-                        claude_model = config.get('agent1_claude_model', 'Sonnet 3.5')
-                        claude_client = LLMClient(claude_model)
-                        poetry = claude_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"Claude ({claude_model})"
-                    elif config.get('agent1_llm', 'Claude') == 'Gemini':
-                        gemini_model = config.get('agent1_gemini_model', 'Gemini 1.5 Flash')
-                        gemini_client = GeminiClient(gemini_model)
-                        poetry = gemini_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"Gemini ({gemini_model})"
-                    else:  # OpenAI
-                        openai_model = config.get('agent1_openai_model', 'GPT-4o')
-                        openai_client = OpenAIClient(openai_model)
-                        poetry = openai_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"OpenAI ({openai_model})"
-                else:
-                    # Second agent uses user-selected LLM and model
-                    if config.get('agent2_llm', 'Gemini') == 'OpenRouter':
-                        openrouter_search = config.get('agent2_openrouter_search', 'Gemini')
-                        openrouter_client = OpenRouterClient(openrouter_search)
-                        poetry = openrouter_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"OpenRouter ({openrouter_search})"
-                    elif config.get('agent2_llm', 'Gemini') == 'Claude':
-                        claude_model = config.get('agent2_claude_model', 'Sonnet 3.5')
-                        claude_client = LLMClient(claude_model)
-                        poetry = claude_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"Claude ({claude_model})"
-                    elif config.get('agent2_llm', 'Gemini') == 'Gemini':
-                        gemini_model = config.get('agent2_gemini_model', 'Gemini 1.5 Flash')
-                        gemini_client = GeminiClient(gemini_model)
-                        poetry = gemini_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"Gemini ({gemini_model})"
-                    else:  # OpenAI
-                        openai_model = config.get('agent2_openai_model', 'GPT-4o')
-                        openai_client = OpenAIClient(openai_model)
-                        poetry = openai_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = f"OpenAI ({openai_model})"
+                # Create client for this agent using factory
+                client = LLMClientFactory.create_client(config, agent_index + 1)
+                llm_used = LLMClientFactory.get_client_display_name(config, agent_index + 1)
+                
+                # Generate poetry
+                poetry = client.generate_poetry(prompt, max_tokens=300)
                 
                 # Add emojis if requested
                 if config.get('use_emojis', False):
-                    poetry = self.add_emojis_to_poetry(poetry, config['theme'])
+                    poetry = self.enhancement_service.add_emojis_to_poetry(poetry, config['theme'])
                 
                 # Add to conversation history
                 self.conversation_history.append({
@@ -176,76 +135,17 @@ class DialogueManager:
         
         return '\n'.join(output)
     
-    def generate_ascii_art(self, theme: str) -> str:
-        """
-        Generate ASCII art based on the theme using LLM.
-        
-        Args:
-            theme: The theme to create ASCII art for
-            
-        Returns:
-            ASCII art as a string
-        """
-        ascii_prompt = f"""Create simple ASCII art (text art) that represents the poetic theme: "{theme}". 
-
-Guidelines:
-- Use only basic ASCII characters: - | / \\ * + = ~ ^ v < > . : ; ' " ( ) [ ] {{ }} @ # $ % & 
-- Keep it small but impactful (4-8 lines maximum)
-- Make it visually appealing and thematically appropriate
-- Consider the poetic and artistic nature of the theme
-- Create something that would complement poetry about this theme
-
-Examples of good ASCII art themes:
-- Snow/winter: snowflakes, bare trees, mountains
-- Ocean/water: waves, boats, fish
-- Night/stars: moon, stars, constellation patterns  
-- Love/romance: hearts, flowers, intertwined elements
-- Archery: bows, arrows, targets
-- Games: board patterns, pieces
-- Nature: trees, animals, landscapes
-
-Return ONLY the ASCII art with no explanatory text or comments."""
-        
-        # Initialize a Claude client for ASCII art generation if not already done
-        if not self.claude_client:
-            self.claude_client = LLMClient()
-        
-        ascii_art = self.claude_client.generate_poetry(ascii_prompt, max_tokens=250)
-        return ascii_art.strip()
+    def _generate_title(self, theme: str) -> str:
+        """Generate title from theme using default Claude client."""
+        try:
+            title_client = LLMClient()  # Use default Claude
+            title_prompt = create_title_prompt(theme)
+            return title_client.generate_poetry(title_prompt, max_tokens=20)
+        except Exception:
+            # Fallback title generation
+            words = theme.split()
+            return ' '.join(word.capitalize() for word in words[:3])
     
-    def add_emojis_to_poetry(self, poetry: str, theme: str) -> str:
-        """
-        Add emojis to poetry by enhancing words with relevant emojis.
-        
-        Args:
-            poetry: The original poetry text
-            theme: The theme to help context for emoji selection
-            
-        Returns:
-            Poetry enhanced with emojis placed after relevant words
-        """
-        emoji_prompt = f"""Add emojis to enhance this poetry about "{theme}". 
-
-Instructions:
-- Place emojis immediately AFTER words they represent (word🌟 not 🌟word)
-- Only add emojis to nouns, nature words, emotions, and vivid imagery words
-- Don't add emojis to articles, prepositions, or common words like "the", "and", "in"
-- Use 2-4 emojis per line maximum to avoid overwhelming the poetry
-- Choose emojis that enhance the poetic imagery and theme
-- Preserve the exact line structure and spacing of the original
-- Return ONLY the enhanced poetry with no explanatory text or comments
-
-Original poetry:
-{poetry}
-
-Return the poetry with emojis added, maintaining the same line breaks and structure."""
-        
-        # Initialize a Claude client for emoji enhancement if not already done
-        if not self.claude_client:
-            self.claude_client = LLMClient()
-        
-        enhanced_poetry = self.claude_client.generate_poetry(emoji_prompt, max_tokens=400)
-        return enhanced_poetry.strip()
     
     def save_dialogue_to_markdown(self, dialogue_data: Dict[str, Any], filename: str = None) -> str:
         """
@@ -378,8 +278,3 @@ Return the poetry with emojis added, maintaining the same line breaks and struct
         
         return "\n".join(context_parts)
     
-    def _initialize_clients(self, config: Dict[str, Any]):
-        """Initialize LLM clients based on configuration."""
-        # This method is kept for backward compatibility but clients are now created per-use
-        # to support different models per agent
-        pass
