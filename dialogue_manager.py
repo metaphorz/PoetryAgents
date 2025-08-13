@@ -6,6 +6,8 @@ import os
 from typing import List, Dict, Any
 from llm_client import LLMClient
 from gemini_client import GeminiClient
+from openai_client import OpenAIClient
+from openrouter_client import OpenRouterClient
 from prompts import create_initial_poetry_prompt, create_response_poetry_prompt, create_title_prompt
 from character_names import get_random_names, get_character_info
 
@@ -14,8 +16,8 @@ class DialogueManager:
     
     def __init__(self):
         """Initialize the dialogue manager."""
-        self.claude_client = LLMClient()
-        self.gemini_client = GeminiClient()
+        self.claude_client = None
+        self.gemini_client = None
         self.agents = []
         self.conversation_history = []
     
@@ -29,8 +31,14 @@ class DialogueManager:
         Returns:
             Dictionary containing title, agents, and dialogue history
         """
-        # Generate title from theme using Claude
+        # Initialize clients with user-selected models
+        self._initialize_clients(config)
+        
+        # Generate title from theme using Claude (default to first available model)
         title_prompt = create_title_prompt(config['theme'])
+        if not self.claude_client:
+            # Initialize a default Claude client for title generation
+            self.claude_client = LLMClient()
         title = self.claude_client.generate_poetry(title_prompt, max_tokens=20)
         
         # Generate ASCII art for the theme
@@ -57,32 +65,63 @@ class DialogueManager:
                         agent_name
                     )
                 else:
-                    # Subsequent agents respond to previous poetry
-                    previous_poetry = self.conversation_history[-1]['poetry']
+                    # Subsequent agents respond to complete conversation history
+                    conversation_context = self._build_conversation_context(
+                        config['theme'], 
+                        self.conversation_history
+                    )
                     prompt = create_response_poetry_prompt(
                         agent_name,
-                        previous_poetry,
+                        conversation_context,
                         config['form'],
                         config['poem_length']
                     )
                 
-                # Use user-specified LLM for each agent
+                # Use user-specified LLM and model for each agent
                 if agent_index == 0:
-                    # First agent uses user-selected LLM
-                    if config.get('agent1_llm', 'Claude') == 'Claude':
-                        poetry = self.claude_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = "Claude"
-                    else:
-                        poetry = self.gemini_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = "Gemini"
+                    # First agent uses user-selected LLM and model
+                    if config.get('agent1_llm', 'Claude') == 'OpenRouter':
+                        openrouter_search = config.get('agent1_openrouter_search', 'Claude')
+                        openrouter_client = OpenRouterClient(openrouter_search)
+                        poetry = openrouter_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"OpenRouter ({openrouter_search})"
+                    elif config.get('agent1_llm', 'Claude') == 'Claude':
+                        claude_model = config.get('agent1_claude_model', 'Sonnet 3.5')
+                        claude_client = LLMClient(claude_model)
+                        poetry = claude_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"Claude ({claude_model})"
+                    elif config.get('agent1_llm', 'Claude') == 'Gemini':
+                        gemini_model = config.get('agent1_gemini_model', 'Gemini 1.5 Flash')
+                        gemini_client = GeminiClient(gemini_model)
+                        poetry = gemini_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"Gemini ({gemini_model})"
+                    else:  # OpenAI
+                        openai_model = config.get('agent1_openai_model', 'GPT-4o')
+                        openai_client = OpenAIClient(openai_model)
+                        poetry = openai_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"OpenAI ({openai_model})"
                 else:
-                    # Second agent uses user-selected LLM
-                    if config.get('agent2_llm', 'Gemini') == 'Claude':
-                        poetry = self.claude_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = "Claude"
-                    else:
-                        poetry = self.gemini_client.generate_poetry(prompt, max_tokens=300)
-                        llm_used = "Gemini"
+                    # Second agent uses user-selected LLM and model
+                    if config.get('agent2_llm', 'Gemini') == 'OpenRouter':
+                        openrouter_search = config.get('agent2_openrouter_search', 'Gemini')
+                        openrouter_client = OpenRouterClient(openrouter_search)
+                        poetry = openrouter_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"OpenRouter ({openrouter_search})"
+                    elif config.get('agent2_llm', 'Gemini') == 'Claude':
+                        claude_model = config.get('agent2_claude_model', 'Sonnet 3.5')
+                        claude_client = LLMClient(claude_model)
+                        poetry = claude_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"Claude ({claude_model})"
+                    elif config.get('agent2_llm', 'Gemini') == 'Gemini':
+                        gemini_model = config.get('agent2_gemini_model', 'Gemini 1.5 Flash')
+                        gemini_client = GeminiClient(gemini_model)
+                        poetry = gemini_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"Gemini ({gemini_model})"
+                    else:  # OpenAI
+                        openai_model = config.get('agent2_openai_model', 'GPT-4o')
+                        openai_client = OpenAIClient(openai_model)
+                        poetry = openai_client.generate_poetry(prompt, max_tokens=300)
+                        llm_used = f"OpenAI ({openai_model})"
                 
                 # Add emojis if requested
                 if config.get('use_emojis', False):
@@ -167,6 +206,10 @@ Examples of good ASCII art themes:
 
 Return ONLY the ASCII art with no explanatory text or comments."""
         
+        # Initialize a Claude client for ASCII art generation if not already done
+        if not self.claude_client:
+            self.claude_client = LLMClient()
+        
         ascii_art = self.claude_client.generate_poetry(ascii_prompt, max_tokens=250)
         return ascii_art.strip()
     
@@ -196,6 +239,10 @@ Original poetry:
 {poetry}
 
 Return the poetry with emojis added, maintaining the same line breaks and structure."""
+        
+        # Initialize a Claude client for emoji enhancement if not already done
+        if not self.claude_client:
+            self.claude_client = LLMClient()
         
         enhanced_poetry = self.claude_client.generate_poetry(emoji_prompt, max_tokens=400)
         return enhanced_poetry.strip()
@@ -305,3 +352,34 @@ Return the poetry with emojis added, maintaining the same line breaks and struct
             f.write('\n'.join(content))
         
         return filename
+    
+    def _build_conversation_context(self, theme: str, conversation_history: List[Dict[str, Any]]) -> str:
+        """
+        Build the complete conversation context including theme and all previous poems.
+        
+        Args:
+            theme: The original theme that started the conversation
+            conversation_history: List of conversation entries so far
+            
+        Returns:
+            Formatted string containing the complete conversation context
+        """
+        context_parts = []
+        
+        # Start with the original theme
+        context_parts.append(f"Theme: {theme}")
+        context_parts.append("")
+        
+        # Add each poem in the conversation so far
+        for entry in conversation_history:
+            context_parts.append(f"{entry['agent']}:")
+            context_parts.append(entry['poetry'])
+            context_parts.append("")
+        
+        return "\n".join(context_parts)
+    
+    def _initialize_clients(self, config: Dict[str, Any]):
+        """Initialize LLM clients based on configuration."""
+        # This method is kept for backward compatibility but clients are now created per-use
+        # to support different models per agent
+        pass

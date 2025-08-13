@@ -1,6 +1,6 @@
 # Poetry Agent Dialogue Generator
 
-A system that creates poetry dialogues between AI agents using Google Gemini and Anthropic Claude, where agents respond to each other based on themes and previous poetry.
+A system that creates poetry dialogues between AI agents using Claude, Gemini, OpenAI, or OpenRouter, where agents engage in continuous conversation by responding to the complete dialogue history.
 
 ## Quick Start
 

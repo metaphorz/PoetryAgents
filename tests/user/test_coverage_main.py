@@ -46,15 +46,29 @@ class TestGetUserInput(unittest.TestCase):
         
         self.assertEqual(result, expected)
     
-    def test_get_user_input_ballad_no_emojis(self):
+    @patch('main.GeminiClient')
+    @patch('main.LLMClient')
+    def test_get_user_input_ballad_no_emojis(self, mock_llm_client, mock_gemini_client):
         """Test user input for ballad without emojis."""
+        # Mock the model discovery
+        mock_llm_client.get_available_models.return_value = {
+            'Claude Sonnet 4': 'claude-sonnet-4-20250514',
+            'Claude Opus 4': 'claude-opus-4-20250514'
+        }
+        mock_gemini_client.get_available_models.return_value = {
+            'Gemini 2.5 Pro': 'gemini-2.5-pro',
+            'Gemini 2.5 Flash': 'gemini-2.5-flash'
+        }
+        
         inputs = [
             'folk tale',      # theme
             'ballad',         # form
             '4',              # stanzas
             '1',              # conversation rounds
             'Gemini',         # agent 1 LLM
+            '1',              # agent 1 Gemini model (first one)
             'Claude',         # agent 2 LLM
+            '1',              # agent 2 Claude model (first one)
             'no'              # emojis
         ]
         
@@ -70,6 +84,12 @@ class TestGetUserInput(unittest.TestCase):
             'conversation_length': 1,
             'agent1_llm': 'Gemini',
             'agent2_llm': 'Claude',
+            'agent1_claude_model': None,
+            'agent1_gemini_model': 'Gemini 2.5 Pro',
+            'agent1_openai_model': None,
+            'agent2_claude_model': 'Claude Sonnet 4',
+            'agent2_gemini_model': None,
+            'agent2_openai_model': None,
             'use_emojis': False,
             'output_format': 'markdown'
         }

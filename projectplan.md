@@ -121,3 +121,67 @@ The system requires an Anthropic API key to function. In Claude Code environment
 
 **Testing Status:**
 System architecture and code logic successfully implemented and tested. All components integrate properly. Poetry generation ready once API authentication is configured.
+
+---
+
+# NEW PROJECT PLAN: Claude Model Choice Implementation
+
+## Problem Analysis
+The current system uses two LLM clients (Claude and Gemini) but Claude is hardcoded to use `claude-3-5-sonnet-20241022`. Users cannot choose between different Claude models like Sonnet 3.5, Sonnet 4.0, or Opus models.
+
+## Current Architecture
+- **Claude Client**: `llm_client.py` - hardcoded to Sonnet 3.5
+- **Gemini Client**: `gemini_client.py` - uses `gemini-1.5-flash`
+- **Main Configuration**: Users can choose Claude/Gemini per agent but not specific Claude models
+- **Usage**: Both title generation and ASCII art generation always use Claude (no model choice)
+
+## Available Claude Models
+Based on Anthropic's API:
+- `claude-3-5-sonnet-20241022` (current default)
+- `claude-3-5-sonnet-20240620` 
+- `claude-3-opus-20240229`
+- `claude-3-haiku-20240307`
+- `claude-3-5-haiku-20241022`
+
+## Todo Items
+
+### Phase 1: Configuration Enhancement
+- [x] Modify LLMClient to accept model parameter
+- [x] Modify GeminiClient to accept model parameter
+- [x] Update configuration questions to include model selection
+- [x] Add model validation and error handling
+
+### Phase 2: User Interface Updates
+- [x] Update main.py to ask for Claude and Gemini model choices
+- [x] Modify dialogue_manager.py to pass model selections to clients
+- [x] Update output formatting to show specific model used
+
+### Phase 3: Testing & Validation
+- [ ] Test all Claude model variants
+- [ ] Test all Gemini model variants
+- [ ] Update existing tests to cover model selection
+- [ ] Verify backward compatibility
+
+## Implementation Strategy
+Keep changes minimal and simple:
+1. Add optional `model` parameter to LLMClient constructor
+2. Add one new configuration question for Claude model choice
+3. Pass model selection through existing code paths
+4. Maintain backward compatibility with current default
+
+---
+
+# OPENAI INTEGRATION UPDATE
+
+## Added Third LLM Provider
+- **OpenAI Client**: New `openai_client.py` with 5 model options
+- **Available Models**: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
+- **Integration**: Full support in main.py and dialogue_manager.py
+- **Testing**: Connection test PASSED
+
+## Final Implementation Status
+- [x] **Claude**: 5 model variants (Sonnet, Opus, Haiku)
+- [x] **Gemini**: 3 model variants (Flash, Pro, 1.0)
+- [x] **OpenAI**: 5 model variants (GPT-4o through 3.5 Turbo)
+- [x] **User Interface**: Complete model selection for both agents
+- [x] **Output Format**: Shows specific model used per agent

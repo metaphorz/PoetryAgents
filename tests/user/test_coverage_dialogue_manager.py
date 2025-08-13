@@ -29,22 +29,20 @@ class TestDialogueManager(unittest.TestCase):
             'conversation_length': 1,
             'agent1_llm': 'Claude',
             'agent2_llm': 'Gemini',
+            'agent1_claude_model': 'Claude Sonnet 4',
+            'agent1_gemini_model': None,
+            'agent2_claude_model': None,
+            'agent2_gemini_model': 'Gemini 2.5 Pro',
             'use_emojis': False
         }
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_initialization(self, mock_llm_client, mock_gemini_client):
+    def test_initialization(self):
         """Test DialogueManager initialization."""
-        mock_claude = MagicMock()
-        mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
-        
         manager = DialogueManager()
         
-        self.assertEqual(manager.claude_client, mock_claude)
-        self.assertEqual(manager.gemini_client, mock_gemini)
+        # New interface initializes clients to None initially
+        self.assertIsNone(manager.claude_client)
+        self.assertIsNone(manager.gemini_client)
         self.assertEqual(manager.agents, [])
         self.assertEqual(manager.conversation_history, [])
     

@@ -63,12 +63,21 @@ class TestLLMClient(unittest.TestCase):
         mock_client = MagicMock()
         mock_anthropic.Anthropic.return_value = mock_client
         
+        # Mock the models.list() call for dynamic discovery
+        mock_model = MagicMock()
+        mock_model.display_name = "Claude Sonnet 4"
+        mock_model.id = "claude-sonnet-4-20250514"
+        mock_model.created_at = "2025-05-22T00:00:00Z"
+        mock_client.models.list.return_value.data = [mock_model]
+        
         client = self.LLMClient()
         
         # Check that Anthropic was called with correct API key
         mock_anthropic.Anthropic.assert_called_once_with(api_key='test_key')
         self.assertEqual(client.client, mock_client)
-        self.assertEqual(client.model, "claude-3-5-sonnet-20241022")
+        # Should use the first available model from dynamic discovery
+        self.assertEqual(client.model, "claude-sonnet-4-20250514")
+        self.assertEqual(client.model_name, "Claude Sonnet 4")
     
     @patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test_key'})
     @patch('llm_client.anthropic')

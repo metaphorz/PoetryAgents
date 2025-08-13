@@ -2,7 +2,8 @@
 Prompt templates for poetry generation using Sonnet 4.
 """
 
-from character_names import get_character_persona
+from character_names import get_character_persona, get_enhanced_character_persona
+from poetry_rules import get_poetry_rules, get_formatting_rules, get_quality_guidelines
 
 def create_initial_poetry_prompt(theme: str, form: str, length: int, agent_name: str = None) -> str:
     """
@@ -15,103 +16,117 @@ def create_initial_poetry_prompt(theme: str, form: str, length: int, agent_name:
         agent_name: Optional agent name for persona (if None, uses generic prompt)
         
     Returns:
-        Formatted prompt for the LLM
+        Formatted prompt for the LLM with comprehensive structural rules
     """
-    # Get persona if agent name is provided
+    # Get enhanced persona if agent name is provided
     persona_prefix = ""
     if agent_name:
-        persona = get_character_persona(agent_name)
-        persona_prefix = f"{persona} "
+        persona = get_enhanced_character_persona(agent_name)
+        persona_prefix = f"{persona}\n\n"
     
-    if form == "haiku":
-        if length == 1:
-            return f"{persona_prefix}Write a haiku (5-7-5 syllables) about {theme}. Return only the 3-line haiku with no explanatory text. Put a blank line after the haiku."
-        else:
-            return f"{persona_prefix}Write {length} haiku stanzas about {theme}. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Format as:\n\nFirst haiku (3 lines)\n\nSecond haiku (3 lines)\n\nReturn only the haiku verses with no explanatory text. Put a blank line after each individual haiku stanza."
+    # Get comprehensive rules for the poetry form
+    structural_rules = get_poetry_rules(form)
+    formatting_rules = get_formatting_rules()
+    quality_guidelines = get_quality_guidelines()
     
-    elif form == "prose":
-        return f"{persona_prefix}Write a {length}-line prose poem about {theme}. Use free verse with natural language flow. Return only the poem with no explanatory text. Put a blank line after the poem."
-    
-    elif form == "sonnet":
-        return f"{persona_prefix}Write a Shakespearean sonnet about {theme}. Follow the ABAB CDCD EFEF GG rhyme scheme with 14 lines of iambic pentameter. End with a rhyming couplet that provides resolution or insight. Return only the sonnet with no explanatory text."
-    
-    elif form == "villanelle":
-        return f"{persona_prefix}Write a villanelle about {theme}. Use the traditional form: 19 lines with two refrains and two rhymes, with the first and third line of the opening tercet repeated alternately until the last stanza, which includes both refrains. Pattern: A1bA2 abA1 abA2 abA1 abA2 abA1A2. Return only the villanelle with no explanatory text."
-    
-    elif form == "limerick":
-        if length == 1:
-            return f"{persona_prefix}Write a limerick about {theme}. Follow the AABBA rhyme scheme with 5 lines in anapestic meter. Make it witty and playful. Return only the limerick with no explanatory text."
-        else:
-            return f"{persona_prefix}Write {length} limericks about {theme}. Each should follow the AABBA rhyme scheme with 5 lines in anapestic meter. Make them witty and playful. Put a blank line between each limerick. Return only the limericks with no explanatory text."
-    
+    # Handle length variations for specific forms
+    length_instruction = ""
+    if form == "haiku" and length > 1:
+        length_instruction = f"\n\nWrite {length} haiku about the theme. Put a blank line between each haiku."
+    elif form == "limerick" and length > 1:
+        length_instruction = f"\n\nWrite {length} limericks about the theme. Put a blank line between each limerick."
+    elif form == "tanka" and length > 1:
+        length_instruction = f"\n\nWrite {length} tanka about the theme. Put a blank line between each tanka."
     elif form == "ballad":
-        return f"{persona_prefix}Write a ballad about {theme}. Use quatrains (4-line stanzas) with ABAB or ABCB rhyme scheme, typically in iambic meter. Tell a story with narrative progression. Write {length} stanzas. Return only the ballad with no explanatory text."
-    
+        length_instruction = f"\n\nWrite a ballad with {length} stanzas about the theme."
     elif form == "ghazal":
-        return f"{persona_prefix}Write a ghazal about {theme}. Use 5-15 couplets where each couplet is independent but connected thematically. The second line of each couplet should end with the same word or phrase (radif). Focus on themes of love, loss, or longing. Return only the ghazal with no explanatory text."
+        length_instruction = f"\n\nWrite a ghazal with {length} couplets about the theme."
+    elif form == "prose":
+        length_instruction = f"\n\nWrite a prose poem with {length} paragraphs about the theme."
     
-    elif form == "tanka":
-        if length == 1:
-            return f"{persona_prefix}Write a tanka about {theme}. Follow the 5-7-5-7-7 syllable pattern across 5 lines. Often includes a pivot between lines 2-3 or 3-4. Return only the tanka with no explanatory text."
-        else:
-            return f"{persona_prefix}Write {length} tanka about {theme}. Each should follow the 5-7-5-7-7 syllable pattern across 5 lines. Put a blank line between each tanka. Return only the tanka with no explanatory text."
-    
-    else:
-        return f"{persona_prefix}Write a {form} poem about {theme}. Return only the poem with no explanatory text."
+    # Construct the comprehensive prompt
+    prompt = f"""{persona_prefix}TASK: Write a {form} about the theme: "{theme}"{length_instruction}
 
-def create_response_poetry_prompt(agent_name: str, previous_poetry: str, form: str, length: int) -> str:
+{structural_rules}
+
+{quality_guidelines}
+
+{formatting_rules}
+
+THEME: {theme}
+
+Begin writing your {form} now:"""
+    
+    return prompt
+
+def create_response_poetry_prompt(agent_name: str, conversation_context: str, form: str, length: int) -> str:
     """
-    Create a prompt for an agent responding to previous poetry.
+    Create a prompt for an agent responding to the complete conversation history.
     
     Args:
         agent_name: Name of the responding agent
-        previous_poetry: The poetry being responded to
+        conversation_context: The complete conversation context including theme and all previous poems
         form: Poetry form (haiku, prose, sonnet, villanelle, limerick, ballad, ghazal, tanka)
         length: Length specification
         
     Returns:
-        Formatted prompt for the LLM
+        Formatted prompt for the LLM with comprehensive structural rules
     """
-    # Get the character's literary persona
-    persona = get_character_persona(agent_name)
+    # Get the character's enhanced literary persona
+    persona = get_enhanced_character_persona(agent_name)
     
-    if form == "haiku":
-        if length == 1:
-            base_prompt = f"{persona} Respond to this poetry with a haiku (5-7-5 syllables). Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the 3-line haiku with no explanatory text. Put a blank line after the haiku."
-        else:
-            base_prompt = f"{persona} Respond to this poetry with {length} haiku stanzas. Each stanza should be 3 lines following the 5-7-5 syllable pattern. Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nFormat as:\n\nFirst haiku (3 lines)\n\nSecond haiku (3 lines)\n\nReturn only the haiku verses with no explanatory text. Put a blank line after each individual haiku stanza."
+    # Get comprehensive rules for the poetry form
+    structural_rules = get_poetry_rules(form)
+    formatting_rules = get_formatting_rules()
+    quality_guidelines = get_quality_guidelines()
     
-    elif form == "prose":
-        base_prompt = f"{persona} Respond to this poetry with a {length}-line prose poem. Use free verse and incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the poem with no explanatory text. Put a blank line after the poem."
-    
-    elif form == "sonnet":
-        base_prompt = f"{persona} Respond to this poetry with a Shakespearean sonnet. Follow the ABAB CDCD EFEF GG rhyme scheme with 14 lines of iambic pentameter. Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the sonnet with no explanatory text."
-    
-    elif form == "villanelle":
-        base_prompt = f"{persona} Respond to this poetry with a villanelle. Use the traditional 19-line form with two refrains and two rhymes. Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the villanelle with no explanatory text."
-    
-    elif form == "limerick":
-        if length == 1:
-            base_prompt = f"{persona} Respond to this poetry with a limerick. Follow the AABBA rhyme scheme with 5 lines in anapestic meter. Make it witty and incorporate elements from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the limerick with no explanatory text."
-        else:
-            base_prompt = f"{persona} Respond to this poetry with {length} limericks. Each should follow the AABBA rhyme scheme. Make them witty and incorporate elements from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the limericks with no explanatory text."
-    
+    # Handle length variations for specific forms
+    length_instruction = ""
+    if form == "haiku" and length > 1:
+        length_instruction = f"\n\nRespond with {length} haiku. Put a blank line between each haiku."
+    elif form == "limerick" and length > 1:
+        length_instruction = f"\n\nRespond with {length} limericks. Put a blank line between each limerick."
+    elif form == "tanka" and length > 1:
+        length_instruction = f"\n\nRespond with {length} tanka. Put a blank line between each tanka."
     elif form == "ballad":
-        base_prompt = f"{persona} Respond to this poetry with a ballad of {length} stanzas. Use quatrains with ABAB or ABCB rhyme scheme and tell a story. Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the ballad with no explanatory text."
-    
+        length_instruction = f"\n\nRespond with a ballad of {length} stanzas."
     elif form == "ghazal":
-        base_prompt = f"{persona} Respond to this poetry with a ghazal. Use 5-15 couplets with the same radif (ending phrase). Focus on themes of love, loss, or longing. Incorporate elements from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the ghazal with no explanatory text."
+        length_instruction = f"\n\nRespond with a ghazal of {length} couplets."
+    elif form == "prose":
+        length_instruction = f"\n\nRespond with a prose poem of {length} paragraphs."
     
-    elif form == "tanka":
-        if length == 1:
-            base_prompt = f"{persona} Respond to this poetry with a tanka. Follow the 5-7-5-7-7 syllable pattern across 5 lines. Incorporate elements from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the tanka with no explanatory text."
-        else:
-            base_prompt = f"{persona} Respond to this poetry with {length} tanka. Each should follow the 5-7-5-7-7 syllable pattern. Incorporate elements from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the tanka with no explanatory text."
+    # Construct the comprehensive response prompt
+    prompt = f"""{persona}
+
+TASK: Respond to this poetic dialogue with a {form}.{length_instruction}
+
+DIALOGUE RESPONSE REQUIREMENTS:
+• CRITICAL: Your poem MUST include at least ONE specific word, image, or concept from the immediately preceding poem
+• Transform or reinterpret that element through your character's unique perspective
+• FORBIDDEN: Writing poems that could exist independently of this conversation
+• REQUIRED: Poems that clearly build upon, challenge, or transform what came before
+
+RESPONSE PROCESS:
+1. Identify the strongest image/metaphor from the previous poem
+2. Consider how your character would interpret or respond to that image  
+3. Build your poem around that connection while maintaining your distinctive voice
+
+DIALOGUE TEST: A reader should be able to identify which specific element from the previous poem you're responding to. If the connection isn't clear, you must revise.
+
+CHARACTER PERSPECTIVE: As {agent_name}, interpret the previous speaker's central image through your unique worldview. How does their metaphor relate to your experiences, conflicts, or philosophy?
+
+{structural_rules}
+
+{quality_guidelines}
+
+{formatting_rules}
+
+CONVERSATION HISTORY:
+{conversation_context}
+
+Respond with your {form} now:"""
     
-    else:
-        base_prompt = f"{persona} Respond to this poetry with a {form} poem. Incorporate elements, words, or themes from the previous poetry while expressing your distinctive character voice:\n\n{previous_poetry}\n\nReturn only the poem with no explanatory text."
-    
-    return base_prompt
+    return prompt
 
 def create_title_prompt(theme: str) -> str:
     """

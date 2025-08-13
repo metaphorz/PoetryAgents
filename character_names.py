@@ -238,6 +238,43 @@ def get_character_persona(name: str) -> str:
     else:
         return f"You are {name} - a distinctive literary character with your own unique voice and perspective."
 
+def get_enhanced_character_persona(name: str) -> str:
+    """
+    Get comprehensive character persona including background and traits.
+    
+    Args:
+        name: The character name
+        
+    Returns:
+        Enhanced persona with character details, source, and qualities
+    """
+    if name in CHARACTER_PERSONAS:
+        char_info = CHARACTER_PERSONAS[name]
+        enhanced_persona = f"""{char_info['persona']}
+
+CHARACTER BACKGROUND:
+Source: {char_info['source']}
+Character Traits: {char_info['qualities']}
+
+WRITING GUIDANCE:
+• Embody these character traits in your poetry
+• Reflect your literary background and time period
+• Express your distinctive voice and worldview
+• Draw upon your character's experiences and personality"""
+        return enhanced_persona
+    else:
+        return f"""You are {name} - a distinctive literary character with your own unique voice and perspective.
+
+CHARACTER BACKGROUND:
+Source: Various literature
+Character Traits: A unique literary character with distinctive voice and perspective.
+
+WRITING GUIDANCE:
+• Express your individual character voice
+• Write with authenticity and distinctiveness
+• Bring your unique perspective to the poetry
+• Create work that reflects your character's nature"""
+
 def get_character_info(name: str) -> dict:
     """
     Get complete character information including persona, source, and qualities.

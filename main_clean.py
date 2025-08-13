@@ -41,28 +41,9 @@ def get_user_input():
                 if matches:
                     if len(matches) == 1:
                         print(f"Found 1 match: {matches[0]['id']}")
-                        
-                        # Validate the model
-                        is_valid, warnings, alternatives = validate_openrouter_model(matches[0]['id'])
-                        if not is_valid:
-                            print("\n".join(warnings))
-                            continue
-                        
-                        if warnings:
-                            continue_with_model, new_model_id = ask_user_to_continue_or_choose_another(
-                                matches[0]['id'], warnings, alternatives
-                            )
-                            if continue_with_model and new_model_id:
-                                llm1_choice = 'OpenRouter'
-                                agent1_openrouter_search = new_model_id
-                                print(f"✅ Using model: {new_model_id}")
-                                break
-                            elif not continue_with_model:
-                                continue  # Go back to search
-                        else:
-                            llm1_choice = 'OpenRouter'
-                            agent1_openrouter_search = matches[0]['id']
-                            break
+                        llm1_choice = 'OpenRouter'
+                        agent1_openrouter_search = matches[0]['id']
+                        break
                     else:
                         print(f"Found {len(matches)} matches:")
                         for i, match in enumerate(matches, 1):
@@ -76,28 +57,9 @@ def get_user_input():
                                 if 1 <= choice <= len(matches):
                                     selected_model = matches[choice - 1]
                                     print(f"Selected: {selected_model['id']}")
-                                    
-                                    # Validate the selected model
-                                    is_valid, warnings, alternatives = validate_openrouter_model(selected_model['id'])
-                                    if not is_valid:
-                                        print("\n".join(warnings))
-                                        continue
-                                    
-                                    if warnings:
-                                        continue_with_model, new_model_id = ask_user_to_continue_or_choose_another(
-                                            selected_model['id'], warnings, alternatives
-                                        )
-                                        if continue_with_model and new_model_id:
-                                            llm1_choice = 'OpenRouter'
-                                            agent1_openrouter_search = new_model_id
-                                            print(f"✅ Using model: {new_model_id}")
-                                            break
-                                        elif not continue_with_model:
-                                            continue  # Go back to model selection
-                                    else:
-                                        llm1_choice = 'OpenRouter'
-                                        agent1_openrouter_search = selected_model['id']
-                                        break
+                                    llm1_choice = 'OpenRouter'
+                                    agent1_openrouter_search = selected_model['id']
+                                    break
                                 else:
                                     print(f"Please enter a number between 1 and {len(matches)}")
                             except ValueError:
@@ -123,28 +85,9 @@ def get_user_input():
                 if matches:
                     if len(matches) == 1:
                         print(f"Found 1 match: {matches[0]['id']}")
-                        
-                        # Validate the model
-                        is_valid, warnings, alternatives = validate_openrouter_model(matches[0]['id'])
-                        if not is_valid:
-                            print("\n".join(warnings))
-                            continue
-                        
-                        if warnings:
-                            continue_with_model, new_model_id = ask_user_to_continue_or_choose_another(
-                                matches[0]['id'], warnings, alternatives
-                            )
-                            if continue_with_model and new_model_id:
-                                llm2_choice = 'OpenRouter'
-                                agent2_openrouter_search = new_model_id
-                                print(f"✅ Using model: {new_model_id}")
-                                break
-                            elif not continue_with_model:
-                                continue  # Go back to search
-                        else:
-                            llm2_choice = 'OpenRouter'
-                            agent2_openrouter_search = matches[0]['id']
-                            break
+                        llm2_choice = 'OpenRouter'
+                        agent2_openrouter_search = matches[0]['id']
+                        break
                     else:
                         print(f"Found {len(matches)} matches:")
                         for i, match in enumerate(matches, 1):
@@ -158,28 +101,9 @@ def get_user_input():
                                 if 1 <= choice <= len(matches):
                                     selected_model = matches[choice - 1]
                                     print(f"Selected: {selected_model['id']}")
-                                    
-                                    # Validate the selected model
-                                    is_valid, warnings, alternatives = validate_openrouter_model(selected_model['id'])
-                                    if not is_valid:
-                                        print("\n".join(warnings))
-                                        continue
-                                    
-                                    if warnings:
-                                        continue_with_model, new_model_id = ask_user_to_continue_or_choose_another(
-                                            selected_model['id'], warnings, alternatives
-                                        )
-                                        if continue_with_model and new_model_id:
-                                            llm2_choice = 'OpenRouter'
-                                            agent2_openrouter_search = new_model_id
-                                            print(f"✅ Using model: {new_model_id}")
-                                            break
-                                        elif not continue_with_model:
-                                            continue  # Go back to model selection
-                                    else:
-                                        llm2_choice = 'OpenRouter'
-                                        agent2_openrouter_search = selected_model['id']
-                                        break
+                                    llm2_choice = 'OpenRouter'
+                                    agent2_openrouter_search = selected_model['id']
+                                    break
                                 else:
                                     print(f"Please enter a number between 1 and {len(matches)}")
                             except ValueError:
@@ -461,85 +385,6 @@ def get_user_input():
         'use_emojis': use_emojis,
         'output_format': 'markdown'  # Always use markdown output
     }
-
-def validate_openrouter_model(model_id):
-    """Validate an OpenRouter model and warn about potential issues.
-    
-    Args:
-        model_id: The model ID to validate
-        
-    Returns:
-        tuple: (is_valid, warnings, alternatives)
-    """
-    try:
-        from openrouter_client import OpenRouterClient
-        
-        # Create a temporary client to check the model
-        temp_client = OpenRouterClient(model_id)
-        status = temp_client.check_model_status(model_id)
-        
-        if not status.get('available', False):
-            return False, [f"❌ Model {model_id} is not available"], []
-        
-        warnings = []
-        alternatives = []
-        
-        # Check if it's a free model
-        if status.get('is_free_model', False):
-            warnings.append("⚠️  This is a FREE model - may have upstream rate limits regardless of your credits")
-            alternatives = temp_client._get_paid_alternatives(model_id)
-            if alternatives:
-                warnings.append(f"💡 Paid alternatives: {', '.join(alternatives[:3])}")
-        
-        return True, warnings, alternatives
-        
-    except Exception as e:
-        return False, [f"❌ Error validating model: {str(e)}"], []
-
-def ask_user_to_continue_or_choose_another(model_id, warnings, alternatives):
-    """Ask user if they want to continue with a model that has warnings.
-    
-    Args:
-        model_id: The model ID
-        warnings: List of warning messages
-        alternatives: List of alternative models
-        
-    Returns:
-        tuple: (continue_with_model, new_model_id)
-    """
-    print(f"\n📋 Model Validation Results for {model_id}:")
-    for warning in warnings:
-        print(f"   {warning}")
-    
-    print("\nOptions:")
-    print("1. Continue with this model anyway")
-    print("2. Choose a different model")
-    if alternatives:
-        print("3. Use a recommended paid alternative")
-    
-    while True:
-        choice = input("\nWhat would you like to do? (1/2/3): ").strip()
-        
-        if choice == "1":
-            return True, model_id
-        elif choice == "2":
-            return False, None
-        elif choice == "3" and alternatives:
-            print("\nRecommended alternatives:")
-            for i, alt in enumerate(alternatives[:5], 1):
-                print(f"  {i}. {alt}")
-            
-            while True:
-                try:
-                    alt_choice = int(input(f"Select alternative (1-{len(alternatives[:5])}): ").strip())
-                    if 1 <= alt_choice <= len(alternatives[:5]):
-                        return True, alternatives[alt_choice - 1]
-                    else:
-                        print(f"Please enter a number between 1 and {len(alternatives[:5])}")
-                except ValueError:
-                    print("Please enter a valid number")
-        else:
-            print("Please enter '1', '2', or '3'")
 
 def generate_title(theme):
     """Generate a title from the theme."""
