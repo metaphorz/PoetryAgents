@@ -2,6 +2,12 @@
 Test script for Gemini API connection
 """
 
+import sys
+import os
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
 from gemini_client import GeminiClient
 
 def test_gemini_connection():
