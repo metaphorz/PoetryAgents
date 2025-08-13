@@ -6,11 +6,23 @@ A system that creates poetry dialogues between AI agents using Claude, Gemini, O
 
 1. **Install dependencies:**
    ```bash
-   pip install anthropic google-generativeai python-dotenv
+   pip install anthropic google-generativeai openai python-dotenv requests
    ```
 
 2. **Set up API keys:**
-   Each agent can use either Google Gemini or Anthropic Claude. You can use either one, or both for agent discourse.
+   You have two options for accessing LLM models:
+   
+   **Option 1: OpenRouter (Recommended - Simplest)**
+   - Sign up at [openrouter.ai](https://openrouter.ai)
+   - Get your API key from the Keys section
+   - Add to `.env` file:
+     ```
+     OPENROUTER_API_KEY=your_openrouter_api_key_here
+     ```
+   - Access to 100+ models from multiple providers through one key
+   
+   **Option 2: Individual Provider APIs**
+   Set up keys for the specific providers you want to use:
    
    **For Anthropic Claude:**
    - Sign up at [console.anthropic.com](https://console.anthropic.com)
@@ -27,6 +39,14 @@ A system that creates poetry dialogues between AI agents using Claude, Gemini, O
      ```
      GEMINI_API_KEY=your_gemini_api_key_here
      ```
+   
+   **For OpenAI:**
+   - Sign up at [platform.openai.com](https://platform.openai.com)
+   - Go to API Keys and create a new key
+   - Add to `.env` file:
+     ```
+     OPENAI_API_KEY=your_openai_api_key_here
+     ```
 
 3. **Run the system:**
    ```bash
@@ -35,14 +55,15 @@ A system that creates poetry dialogues between AI agents using Claude, Gemini, O
 
 ## Example Usage
 
-The system asks 7 questions:
-1. **Theme:** "a walk in the snow"
-2. **Form:** Choose from 8 formats (haiku, prose, sonnet, villanelle, limerick, ballad, ghazal, tanka)
-3. **Poem length:** Automatic for fixed forms (haiku, sonnet, etc.) or user-specified for variable forms (ballad stanzas, ghazal couplets, prose paragraphs)
-4. **Conversation length:** How many rounds of conversation (each agent writes one poem per round)
-5. **Agent 1 LLM:** Claude or Gemini
-6. **Agent 2 LLM:** Claude or Gemini
-7. **Emojis:** Whether to enhance poetry with thematic emojis
+The system asks 8 questions:
+1. **API Mode:** Choose between Direct APIs or OpenRouter
+2. **Agent 1 Model:** Select specific model for first agent
+3. **Agent 2 Model:** Select specific model for second agent  
+4. **Theme:** "a walk in the snow"
+5. **Form:** Choose from 8 formats (haiku, prose, sonnet, villanelle, limerick, ballad, ghazal, tanka)
+6. **Poem length:** Automatic for fixed forms (haiku, sonnet, etc.) or user-specified for variable forms (ballad stanzas, ghazal couplets, prose paragraphs)
+7. **Conversation length:** How many rounds of conversation (each agent writes one poem per round)
+8. **Emojis:** Whether to enhance poetry with thematic emojis
 
 ## Demo Scripts
 
@@ -51,7 +72,7 @@ The system asks 7 questions:
 
 ## Features
 
-- **Dual LLM Support:** Choose Claude or Gemini for each agent independently
+- **Multi-LLM Support:** Choose from Claude, Gemini, OpenAI, or 100+ OpenRouter models for each agent independently
 - **Poetry Forms:** 8 supported formats including:
   - **Haiku:** Traditional 5-7-5 syllable structure
   - **Prose:** Free verse poetry
@@ -70,12 +91,15 @@ The system asks 7 questions:
 
 ## Files
 
-- `main.py` - Interactive CLI interface
-- `dialogue_manager.py` - Core dialogue orchestration with dual LLM support
-- `llm_client.py` - Anthropic Claude API integration
-- `gemini_client.py` - Google Gemini API integration
-- `prompts.py` - LLM prompt templates for all poetry forms
+- `main.py` - Interactive CLI interface with multi-LLM model selection
+- `dialogue_manager.py` - Core dialogue orchestration with multi-LLM support
+- `llm_client.py` - Anthropic Claude API integration (Sonnet 4, Opus 4.1, etc.)
+- `gemini_client.py` - Google Gemini API integration (2.5 Pro, 2.5 Flash, etc.)
+- `openai_client.py` - OpenAI API integration (GPT-4o, GPT-4 Turbo, etc.)
+- `openrouter_client.py` - OpenRouter API integration (100+ models)
+- `poetry_rules.py` - Comprehensive structural rules for all poetry forms
+- `prompts.py` - LLM prompt templates with form-specific rules
 - `character_names.py` - Literary character database with detailed personas
 - `tests/` - Organized test suite:
-  - `tests/auto/` - Automatic system tests
-  - `tests/user/` - User-specified tests
+  - `tests/auto/` - Automatic system tests for all features
+  - `tests/user/` - User-specified coverage tests
