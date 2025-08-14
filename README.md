@@ -100,7 +100,7 @@ The system automatically evaluates and improves poetry conversations using an in
 
 ### Judge Selection Logic
 - **Direct API Mode:** Judge selects from unused providers (if agents use Claude + Gemini, judge uses OpenAI)
-- **OpenRouter Mode:** Judge uses OpenRouter with Claude Sonnet as the critique model
+- **OpenRouter Mode:** Judge selects the latest model from an unused provider (Google → Anthropic → OpenAI priority) through OpenRouter
 - **Bias Prevention:** Judge is always different from conversation agents to ensure objective evaluation
 
 ### Critique Process
