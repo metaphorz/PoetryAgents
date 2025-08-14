@@ -3,6 +3,7 @@ Gemini Client for Google Generative AI integration.
 Refactored to use BaseLLMClient for consistency and reduced duplication.
 """
 
+import os
 from typing import Dict
 from base_llm_client import BaseLLMClient
 from exceptions import APIError, ModelNotAvailableError
@@ -23,10 +24,14 @@ class GeminiClient(BaseLLMClient):
         
         super().__init__(model, 'GEMINI_API_KEY')
     
-    def get_available_models(self, limit_recent: int = 6) -> Dict[str, str]:
+    @classmethod
+    def get_available_models(cls, limit_recent: int = 6) -> Dict[str, str]:
         """Get available Gemini models from the API."""
         try:
-            genai.configure(api_key=self.api_key)
+            api_key = os.getenv('GEMINI_API_KEY')
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY environment variable is required")
+            genai.configure(api_key=api_key)
             models = genai.list_models()
             
             # Build models list with display names, filter for text generation models

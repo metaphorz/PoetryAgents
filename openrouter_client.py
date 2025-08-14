@@ -6,8 +6,9 @@ Handles communication with multiple LLM providers through OpenRouter.
 import os
 import requests
 import time
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from dotenv import load_dotenv
+from base_llm_client import BaseLLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,42 +19,123 @@ except ImportError:
     print("OpenAI library not found. Install with: pip install openai")
     openai = None
 
-class OpenRouterClient:
+class OpenRouterClient(BaseLLMClient):
     """Client for interacting with multiple LLMs through OpenRouter."""
     
-    def __init__(self, model_identifier: str):
+    @classmethod
+    def get_available_models(cls, limit_recent=6):
+        """Fetch available OpenRouter models and return as display_name: model_id dict."""
+        try:
+            api_key = os.getenv('OPENROUTER_API_KEY')
+            if not api_key:
+                raise ValueError("OPENROUTER_API_KEY environment variable is required")
+            
+            response = requests.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                }
+            )
+            response.raise_for_status()
+            models = response.json()["data"]
+            
+            # Build models dict with provider/model format for display
+            # Filter out models that require additional API keys (BYOK models)
+            available_models = {}
+            for model in models[:limit_recent] if limit_recent else models:
+                model_id = model["id"]
+                description = model.get("description", "")
+                
+                # Skip models that require "Bring Your Own Key" (BYOK)
+                if ("BYOK is required" in description or 
+                    "bring your own key" in description.lower()):
+                    continue
+                    
+                # Create a readable display name
+                if "/" in model_id:
+                    provider, model_name = model_id.split("/", 1)
+                    display_name = f"{provider.title()} {model_name.replace('-', ' ').title()}"
+                else:
+                    display_name = model_id.replace('-', ' ').title()
+                
+                available_models[display_name] = model_id
+            
+            return available_models
+            
+        except Exception as e:
+            raise Exception(f"Failed to fetch OpenRouter models: {str(e)}")
+    
+    def __init__(self, model: str = None):
         """Initialize the OpenRouter client.
         
         Args:
-            model_identifier: Either a search term (e.g., "Claude") or exact model ID (e.g., "anthropic/claude-3.5-sonnet")
+            model: Model display name from get_available_models(), or model identifier like 'Claude' for search
         """
-        if not openai:
-            raise ImportError("OpenAI library is required for OpenRouter")
+        # Store the original model for potential search functionality
+        self.model_identifier = model if model else "anthropic/claude-3.5-sonnet"
         
-        # Get API key from environment
-        api_key = os.getenv('OPENROUTER_API_KEY')
-        if not api_key:
-            raise ValueError("OPENROUTER_API_KEY environment variable is required")
+        # For OpenRouter, we handle model validation differently since the available models
+        # can be a very large list and we want to allow any valid OpenRouter model ID
+        self.api_key_env = 'OPENROUTER_API_KEY'
+        self.api_key = self._get_api_key()
         
-        self.api_key = api_key
-        self.model_identifier = model_identifier
-        
-        # Check if it's already a model ID (contains "/") or needs to be found
-        if "/" in model_identifier:
-            self.model_id = model_identifier
-            self.model_name = f"OpenRouter ({model_identifier})"
+        # Set model directly without base class validation for OpenRouter
+        # since we validate through the OpenRouter API directly
+        if model:
+            self.model = model
+            self.model_name = model
         else:
-            self.model_id = self._find_model(model_identifier)
-            self.model_name = f"OpenRouter ({model_identifier})"
+            self.model = "anthropic/claude-3.5-sonnet"
+            self.model_name = "Claude 3.5 Sonnet"
         
-        # Initialize OpenAI client pointing to OpenRouter
-        self.client = openai.OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-        )
+        # Initialize the client
+        self._initialize_client()
         
         # Check account status and warn about potential issues
         self._check_account_status()
+    
+    def _get_api_key(self) -> str:
+        """Get API key from environment variables."""
+        if not self.api_key_env:
+            raise ValueError("API key environment variable name not specified")
+        
+        api_key = os.getenv(self.api_key_env)
+        if not api_key:
+            raise ValueError(f"{self.api_key_env} environment variable is required")
+        
+        return api_key
+    
+    def test_connection(self) -> bool:
+        """
+        Test the connection to the API.
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
+        try:
+            test_response = self.generate_poetry("Write a simple two-word poem.", max_tokens=10)
+            return len(test_response.strip()) > 0
+        except Exception:
+            return False
+    
+    def get_model_info(self) -> Dict[str, str]:
+        """Get information about the current model."""
+        return {
+            'provider': 'OpenRouter',
+            'model_name': self.model_name,
+            'model_id': self.model
+        }
+    
+    def _initialize_client(self):
+        """Initialize the OpenAI client pointing to OpenRouter."""
+        if not openai:
+            raise ImportError("OpenAI library is required for OpenRouter")
+            
+        # Initialize OpenAI client pointing to OpenRouter
+        self.client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=self.api_key,
+        )
     
     def _check_account_status(self):
         """Check account status and warn about potential rate limit issues."""
@@ -67,7 +149,7 @@ class OpenRouterClient:
                 data = response.json()
                 
                 # Check if using free model
-                is_free_model = ":free" in self.model_id
+                is_free_model = ":free" in self.model
                 
                 # Get account info
                 usage = data.get("usage", 0)
@@ -97,79 +179,12 @@ class OpenRouterClient:
                     print("\n" + "\n".join(warnings))
                     print(f"📊 Account: {usage} credits used" + 
                           (f" / {limit} limit" if limit else " (unlimited)"))
-                    print(f"🤖 Model: {self.model_id}")
+                    print(f"🤖 Model: {self.model}")
                     print()
                     
         except Exception as e:
             # Don't fail initialization if status check fails
-            print(f"Note: Unable to check account status: {e}")
-    
-    def _get_available_models(self) -> List[Dict]:
-        """Fetch available models from OpenRouter API."""
-        try:
-            response = requests.get(
-                "https://openrouter.ai/api/v1/models",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                }
-            )
-            response.raise_for_status()
-            return response.json()["data"]
-        except Exception as e:
-            print(f"Error fetching OpenRouter models: {e}")
-            return []
-    
-    def _find_model(self, search_term: str) -> str:
-        """Find the best matching model ID for the search term.
-        
-        Args:
-            search_term: Search term like "Claude", "GPT-4", "Baidu"
-            
-        Returns:
-            Model ID string for OpenRouter API
-        """
-        models = self._get_available_models()
-        search_lower = search_term.lower()
-        
-        # Try exact matches first
-        for model in models:
-            model_id = model["id"]
-            if search_lower in model_id.lower():
-                print(f"Found model: {model_id}")
-                return model_id
-        
-        # Try partial matches in name/description
-        for model in models:
-            model_id = model["id"]
-            model_name = model.get("name", "").lower()
-            
-            if (search_lower in model_name or 
-                search_lower in model_id.lower() or
-                any(search_lower in part for part in model_id.split("/"))):
-                print(f"Found model: {model_id}")
-                return model_id
-        
-        # Fallback options based on common searches - prefer paid models
-        fallback_models = {
-            "claude": "anthropic/claude-3.5-sonnet",
-            "gpt": "openai/gpt-4o",
-            "gpt-4": "openai/gpt-4o", 
-            "gemini": "google/gemini-pro",
-            "llama": "meta-llama/llama-3.2-90b-vision-instruct",  # Paid model
-            "baidu": "baidu/ernie-4.5-300b-a47b",
-            "cohere": "cohere/command-r-plus",
-            "mistral": "mistralai/mistral-large",
-            "anthropic": "anthropic/claude-3.5-sonnet"
-        }
-        
-        for key, model_id in fallback_models.items():
-            if key in search_lower:
-                print(f"Using fallback model: {model_id}")
-                return model_id
-        
-        # Ultimate fallback
-        print(f"No match found for '{search_term}', using default GPT-4o")
-        return "openai/gpt-4o"
+            pass
     
     @classmethod
     def search_models(cls, search_term: str = "") -> List[Dict]:
@@ -194,7 +209,16 @@ class OpenRouterClient:
             models = response.json()["data"]
             
             if not search_term:
-                return models[:20]  # Return first 20 if no search
+                # Filter out BYOK models and return first 20
+                filtered_models = []
+                for model in models:
+                    model_id = model["id"]
+                    description = model.get("description", "")
+                    # Skip BYOK models only
+                    if not ("BYOK is required" in description or 
+                            "bring your own key" in description.lower()):
+                        filtered_models.append(model)
+                return filtered_models[:20]
             
             search_lower = search_term.lower()
             matches = []
@@ -202,13 +226,19 @@ class OpenRouterClient:
             for model in models:
                 model_id = model["id"]
                 model_name = model.get("name", "")
+                description = model.get("description", "")
+                
+                # Skip models that require "Bring Your Own Key" (BYOK)
+                if ("BYOK is required" in description or 
+                    "bring your own key" in description.lower()):
+                    continue
                 
                 if (search_lower in model_id.lower() or 
                     search_lower in model_name.lower()):
                     matches.append({
                         "id": model_id,
                         "name": model_name,
-                        "description": model.get("description", "")
+                        "description": description
                     })
             
             # Sort by relevance (exact matches first, then partial)
@@ -230,58 +260,53 @@ class OpenRouterClient:
             print(f"Error searching models: {e}")
             return []
     
-    def check_model_status(self, model_id: str) -> Dict:
-        """Check if a specific model is available and any known issues.
+    def check_model_status(self, model_id: str) -> Dict[str, Any]:
+        """Check if a model is available and get its status.
         
         Args:
             model_id: The model ID to check
             
         Returns:
-            Dict with status information
+            Dict containing availability and metadata about the model
         """
         try:
-            # Get model info
+            # Fetch all available models
             response = requests.get(
                 "https://openrouter.ai/api/v1/models",
                 headers={"Authorization": f"Bearer {self.api_key}"}
             )
+            response.raise_for_status()
+            models = response.json()["data"]
             
-            if response.status_code == 200:
-                models = response.json()["data"]
-                
-                # Find the specific model
-                model_info = None
-                for model in models:
-                    if model["id"] == model_id:
-                        model_info = model
-                        break
-                
-                if model_info:
-                    is_free = ":free" in model_id
-                    
-                    return {
-                        "available": True,
-                        "is_free_model": is_free,
-                        "pricing": model_info.get("pricing", {}),
-                        "context_length": model_info.get("context_length", 0),
-                        "warnings": [
-                            "Free model - may have upstream rate limits"
-                        ] if is_free else []
-                    }
-                else:
-                    return {
-                        "available": False,
-                        "error": f"Model {model_id} not found"
-                    }
-            else:
+            # Find the specific model
+            model_found = None
+            for model in models:
+                if model["id"] == model_id:
+                    model_found = model
+                    break
+            
+            if not model_found:
                 return {
                     "available": False,
-                    "error": f"API error: {response.status_code}"
+                    "is_free_model": False,
+                    "error": f"Model {model_id} not found in available models"
                 }
-                
+            
+            # Check if it's a free model (ends with :free)
+            is_free_model = model_id.endswith(":free")
+            
+            return {
+                "available": True,
+                "is_free_model": is_free_model,
+                "model_data": model_found,
+                "pricing": model_found.get("pricing", {}),
+                "context_length": model_found.get("context_length", 0)
+            }
+            
         except Exception as e:
             return {
                 "available": False,
+                "is_free_model": False,
                 "error": f"Error checking model status: {str(e)}"
             }
     
@@ -349,7 +374,7 @@ class OpenRouterClient:
         for attempt in range(max_retries):
             try:
                 response = self.client.chat.completions.create(
-                    model=self.model_id,
+                    model=self.model,
                     messages=[
                         {
                             "role": "user",
@@ -373,17 +398,17 @@ class OpenRouterClient:
                 if "429" in error_str and "rate-limited" in error_str:
                     if attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)  # Exponential backoff
-                        print(f"Rate limit hit for {self.model_id}. Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                        print(f"Rate limit hit for {self.model}. Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
                         time.sleep(delay)
                         continue
                     else:
                         # Extract helpful information from the error
                         if "temporarily rate-limited upstream" in error_str:
-                            model_name = self.model_id.split("/")[-1] if "/" in self.model_id else self.model_id
-                            is_free_model = ":free" in self.model_id
+                            model_name = self.model.split("/")[-1] if "/" in self.model else self.model
+                            is_free_model = ":free" in self.model
                             
                             # Suggest paid alternatives for free models
-                            paid_alternatives = self._get_paid_alternatives(self.model_id)
+                            paid_alternatives = self._get_paid_alternatives(self.model)
                             
                             suggestions = [
                                 "1. Use a paid model (not ending in ':free') - your credits will work normally",
@@ -408,23 +433,10 @@ class OpenRouterClient:
                 elif "401" in error_str or "unauthorized" in error_str.lower():
                     raise Exception(f"OpenRouter API authentication failed. Please check your OPENROUTER_API_KEY in .env file")
                 elif "404" in error_str:
-                    raise Exception(f"Model '{self.model_id}' not found. Please check the model name or try a different model")
+                    raise Exception(f"Model '{self.model}' not found. Please check the model name or try a different model")
                 else:
                     # For other errors, don't retry
                     raise Exception(f"Error generating poetry with OpenRouter: {error_str}")
         
         # This should never be reached, but just in case
         raise Exception("Maximum retry attempts exceeded")
-    
-    def test_connection(self) -> bool:
-        """Test the connection to OpenRouter.
-        
-        Returns:
-            True if connection successful, False otherwise
-        """
-        try:
-            test_response = self.generate_poetry("Write a simple two-word poem.", max_tokens=10)
-            return len(test_response.strip()) > 0
-        except Exception as e:
-            print(f"Connection test error: {str(e)}")
-            return False

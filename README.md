@@ -73,6 +73,11 @@ The system asks 8 questions:
 ## Features
 
 - **Multi-LLM Support:** Choose from Claude, Gemini, OpenAI, or 100+ OpenRouter models for each agent independently
+- **Auto-Critique System:** Intelligent poetry evaluation and improvement
+  - **Judge LLM Selection:** Automatically selects a different LLM as judge to avoid bias
+  - **Literary Analysis:** Evaluates thematic coherence, form adherence, quality, flow, and character voice
+  - **Conversation Improvement:** Creates enhanced versions based on critique feedback
+  - **Three-Section Output:** Original conversation, detailed critique, and revised conversation
 - **Poetry Forms:** 8 supported formats including:
   - **Haiku:** Traditional 5-7-5 syllable structure
   - **Prose:** Free verse poetry
@@ -89,10 +94,38 @@ The system asks 8 questions:
 - **ASCII Art:** AI-generated thematic art for each poetry dialogue
 - **Emoji Enhancement:** Optional emoji integration placed after relevant words
 
+## Auto-Critique System
+
+The system automatically evaluates and improves poetry conversations using an intelligent judge LLM:
+
+### Judge Selection Logic
+- **Direct API Mode:** Judge selects from unused providers (if agents use Claude + Gemini, judge uses OpenAI)
+- **OpenRouter Mode:** Judge uses OpenRouter with Claude Sonnet as the critique model
+- **Bias Prevention:** Judge is always different from conversation agents to ensure objective evaluation
+
+### Critique Process
+1. **Literary Analysis:** Judge evaluates:
+   - Thematic coherence with the chosen theme
+   - Adherence to poetic form requirements
+   - Literary quality (imagery, metaphors, word choice)
+   - Conversational flow between agents
+   - Distinct character voices
+   
+2. **Structured Feedback:** Detailed critique with specific suggestions for improvement
+
+3. **Conversation Enhancement:** Judge creates improved versions addressing identified weaknesses
+
+### Enhanced Output Format
+The markdown output contains three comprehensive sections:
+- **Original Conversation:** Initial poetry dialogue with LLM attribution
+- **Literary Critique:** Detailed analysis from the judge LLM  
+- **Revised Conversation:** Improved version incorporating critique feedback
+
 ## Files
 
 - `main.py` - Interactive CLI interface with multi-LLM model selection
-- `dialogue_manager.py` - Core dialogue orchestration with multi-LLM support
+- `dialogue_manager.py` - Core dialogue orchestration with multi-LLM support and critique integration
+- `critique_service.py` - Auto-critique system with judge selection and conversation improvement
 - `llm_client.py` - Anthropic Claude API integration (Sonnet 4, Opus 4.1, etc.)
 - `gemini_client.py` - Google Gemini API integration (2.5 Pro, 2.5 Flash, etc.)
 - `openai_client.py` - OpenAI API integration (GPT-4o, GPT-4 Turbo, etc.)

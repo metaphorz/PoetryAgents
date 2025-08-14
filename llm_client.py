@@ -3,6 +3,7 @@ Claude LLM Client for Anthropic API integration.
 Refactored to use BaseLLMClient for consistency and reduced duplication.
 """
 
+import os
 from typing import Dict
 from base_llm_client import BaseLLMClient
 from exceptions import APIError, ModelNotAvailableError
@@ -23,10 +24,14 @@ class LLMClient(BaseLLMClient):
         
         super().__init__(model, 'ANTHROPIC_API_KEY')
     
-    def get_available_models(self, limit_recent: int = 6) -> Dict[str, str]:
+    @classmethod
+    def get_available_models(cls, limit_recent: int = 6) -> Dict[str, str]:
         """Get available Claude models from the API."""
         try:
-            temp_client = anthropic.Anthropic(api_key=self.api_key)
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+            temp_client = anthropic.Anthropic(api_key=api_key)
             models = temp_client.models.list(limit=50)
             
             # Sort models by creation date (newest first)
@@ -43,15 +48,7 @@ class LLMClient(BaseLLMClient):
             
             return available_models
         except Exception as e:
-            # Fallback to known models if API fails
-            return {
-                "Claude Sonnet 4": "claude-sonnet-4-20250514",
-                "Claude Opus 4.1": "claude-opus-4-1-20250805", 
-                "Claude Sonnet 3.7": "claude-3-7-sonnet-20250219",
-                "Claude Sonnet 3.5 (New)": "claude-3-5-sonnet-20241022",
-                "Claude Haiku 3.5": "claude-3-5-haiku-20241022",
-                "Claude Sonnet 3.5 (Old)": "claude-3-5-sonnet-20240620"
-            }
+            raise Exception(f"Failed to fetch Claude models: {str(e)}")
     
     def _initialize_client(self):
         """Initialize the Anthropic client."""

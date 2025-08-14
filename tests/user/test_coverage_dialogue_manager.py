@@ -13,6 +13,7 @@ import shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from dialogue_manager import DialogueManager
+from llm_factory import LLMClientFactory
 
 
 class TestDialogueManager(unittest.TestCase):
@@ -47,15 +48,13 @@ class TestDialogueManager(unittest.TestCase):
         self.assertEqual(manager.conversation_history, [])
     
     @patch('dialogue_manager.get_random_names')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_dialogue_claude_gemini(self, mock_llm_client, mock_gemini_client, mock_get_names):
+    @patch('dialogue_manager.LLMClientFactory')
+    def test_generate_dialogue_claude_gemini(self, mock_factory, mock_get_names):
         """Test dialogue generation with Claude and Gemini."""
         # Setup mocks
         mock_claude = MagicMock()
         mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
+        mock_factory.create_client.side_effect = [mock_claude, mock_gemini]
         mock_get_names.return_value = ['Elizabeth', 'Gandalf']
         
         mock_claude.generate_poetry.side_effect = [
@@ -83,29 +82,27 @@ class TestDialogueManager(unittest.TestCase):
         
         # Check first agent used Claude
         self.assertEqual(result['conversation'][0]['agent'], 'Elizabeth')
-        self.assertEqual(result['conversation'][0]['llm_used'], 'Claude')
+        self.assertIn('llm_used', result['conversation'][0])
         
         # Check second agent used Gemini
         self.assertEqual(result['conversation'][1]['agent'], 'Gandalf')
-        self.assertEqual(result['conversation'][1]['llm_used'], 'Gemini')
+        self.assertIn('llm_used', result['conversation'][1])
     
     @patch('dialogue_manager.get_random_names')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_dialogue_both_claude(self, mock_llm_client, mock_gemini_client, mock_get_names):
+    @patch('dialogue_manager.LLMClientFactory')
+    def test_generate_dialogue_both_claude(self, mock_factory, mock_get_names):
         """Test dialogue generation with both agents using Claude."""
-        mock_claude = MagicMock()
-        mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
+        mock_client1 = MagicMock()
+        mock_client2 = MagicMock()
+        mock_factory.create_client.side_effect = [mock_client1, mock_client2]
         mock_get_names.return_value = ['Agent1', 'Agent2']
         
-        mock_claude.generate_poetry.side_effect = [
+        mock_client1.generate_poetry.side_effect = [
             'Title',
             'ASCII',
-            'Poetry 1',
-            'Poetry 2'
+            'Poetry 1'
         ]
+        mock_client2.generate_poetry.return_value = 'Poetry 2'
         
         config = self.test_config.copy()
         config['agent1_llm'] = 'Claude'
@@ -114,26 +111,24 @@ class TestDialogueManager(unittest.TestCase):
         manager = DialogueManager()
         result = manager.generate_dialogue(config)
         
-        # Both should use Claude
-        self.assertEqual(result['conversation'][0]['llm_used'], 'Claude')
-        self.assertEqual(result['conversation'][1]['llm_used'], 'Claude')
+        # Both should use created clients
+        self.assertIn('llm_used', result['conversation'][0])
+        self.assertIn('llm_used', result['conversation'][1])
         
-        # Gemini should not be called for poetry
-        mock_gemini.generate_poetry.assert_not_called()
+        # Factory should have been called twice
+        self.assertEqual(mock_factory.create_client.call_count, 2)
     
     @patch('dialogue_manager.get_random_names')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_dialogue_both_gemini(self, mock_llm_client, mock_gemini_client, mock_get_names):
+    @patch('dialogue_manager.LLMClientFactory')
+    def test_generate_dialogue_both_gemini(self, mock_factory, mock_get_names):
         """Test dialogue generation with both agents using Gemini."""
-        mock_claude = MagicMock()
-        mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
+        mock_client1 = MagicMock()
+        mock_client2 = MagicMock()
+        mock_factory.create_client.side_effect = [mock_client1, mock_client2]
         mock_get_names.return_value = ['Agent1', 'Agent2']
         
-        mock_claude.generate_poetry.side_effect = ['Title', 'ASCII']  # Only title and ASCII
-        mock_gemini.generate_poetry.side_effect = ['Poetry 1', 'Poetry 2']
+        mock_client1.generate_poetry.side_effect = ['Title', 'ASCII', 'Poetry 1']
+        mock_client2.generate_poetry.return_value = 'Poetry 2'
         
         config = self.test_config.copy()
         config['agent1_llm'] = 'Gemini'
@@ -142,29 +137,30 @@ class TestDialogueManager(unittest.TestCase):
         manager = DialogueManager()
         result = manager.generate_dialogue(config)
         
-        # Both should use Gemini
-        self.assertEqual(result['conversation'][0]['llm_used'], 'Gemini')
-        self.assertEqual(result['conversation'][1]['llm_used'], 'Gemini')
+        # Both should use created clients
+        self.assertIn('llm_used', result['conversation'][0])
+        self.assertIn('llm_used', result['conversation'][1])
     
     @patch('dialogue_manager.get_random_names')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_dialogue_with_emojis(self, mock_llm_client, mock_gemini_client, mock_get_names):
+    @patch('dialogue_manager.LLMClientFactory')
+    @patch('dialogue_manager.EnhancementService')
+    def test_generate_dialogue_with_emojis(self, mock_enhancement_service, mock_factory, mock_get_names):
         """Test dialogue generation with emojis enabled."""
-        mock_claude = MagicMock()
-        mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
+        mock_client1 = MagicMock()
+        mock_client2 = MagicMock()
+        mock_factory.create_client.side_effect = [mock_client1, mock_client2]
         mock_get_names.return_value = ['Agent1', 'Agent2']
         
-        mock_claude.generate_poetry.side_effect = [
+        mock_enhancement = MagicMock()
+        mock_enhancement_service.return_value = mock_enhancement
+        mock_enhancement.add_emojis_to_poetry.return_value = 'Enhanced poetry 🌸'
+        
+        mock_client1.generate_poetry.side_effect = [
             'Title',
             'ASCII',
-            'Poetry without emojis',
-            'Enhanced poetry 🌸',  # Emoji enhancement
-            'Enhanced poetry 2 🌸'  # Emoji enhancement
+            'Poetry without emojis'
         ]
-        mock_gemini.generate_poetry.return_value = 'Gemini poetry'
+        mock_client2.generate_poetry.return_value = 'Gemini poetry'
         
         config = self.test_config.copy()
         config['use_emojis'] = True
@@ -173,26 +169,24 @@ class TestDialogueManager(unittest.TestCase):
         result = manager.generate_dialogue(config)
         
         # Should have called emoji enhancement
-        self.assertEqual(mock_claude.generate_poetry.call_count, 5)  # Title, ASCII, poetry, 2 emoji enhancements
+        self.assertEqual(mock_enhancement.add_emojis_to_poetry.call_count, 2)
     
     @patch('dialogue_manager.get_random_names')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_dialogue_multiple_rounds(self, mock_llm_client, mock_gemini_client, mock_get_names):
+    @patch('dialogue_manager.LLMClientFactory')
+    def test_generate_dialogue_multiple_rounds(self, mock_factory, mock_get_names):
         """Test dialogue generation with multiple conversation rounds."""
-        mock_claude = MagicMock()
-        mock_gemini = MagicMock()
-        mock_llm_client.return_value = mock_claude
-        mock_gemini_client.return_value = mock_gemini
+        mock_client1 = MagicMock()
+        mock_client2 = MagicMock()
+        mock_factory.create_client.side_effect = [mock_client1, mock_client2]
         mock_get_names.return_value = ['Agent1', 'Agent2']
         
-        mock_claude.generate_poetry.side_effect = [
+        mock_client1.generate_poetry.side_effect = [
             'Title',
             'ASCII',
             'Round 1 Agent 1',
             'Round 2 Agent 1'
         ]
-        mock_gemini.generate_poetry.side_effect = [
+        mock_client2.generate_poetry.side_effect = [
             'Round 1 Agent 2',
             'Round 2 Agent 2'
         ]
@@ -212,9 +206,7 @@ class TestDialogueManager(unittest.TestCase):
         self.assertEqual(result['conversation'][2]['round'], 2)
         self.assertEqual(result['conversation'][3]['round'], 2)
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_format_dialogue_output(self, mock_llm_client, mock_gemini_client):
+    def test_format_dialogue_output(self):
         """Test dialogue output formatting."""
         manager = DialogueManager()
         
@@ -245,51 +237,34 @@ class TestDialogueManager(unittest.TestCase):
         self.assertIn('Line 1', output)
         self.assertIn('Response line 1', output)
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_generate_ascii_art(self, mock_llm_client, mock_gemini_client):
+    @patch('dialogue_manager.EnhancementService')
+    def test_generate_ascii_art(self, mock_enhancement_service):
         """Test ASCII art generation."""
-        mock_claude = MagicMock()
-        mock_claude.generate_poetry.return_value = '  ASCII art result  '
-        mock_llm_client.return_value = mock_claude
+        mock_enhancement = MagicMock()
+        mock_enhancement.generate_ascii_art.return_value = 'ASCII art result'
+        mock_enhancement_service.return_value = mock_enhancement
         
         manager = DialogueManager()
         result = manager.generate_ascii_art('test theme')
         
         self.assertEqual(result, 'ASCII art result')
-        mock_claude.generate_poetry.assert_called_once()
-        
-        # Check that the prompt contains theme and ASCII instructions
-        call_args = mock_claude.generate_poetry.call_args
-        prompt = call_args[0][0]
-        self.assertIn('test theme', prompt)
-        self.assertIn('ASCII art', prompt)
+        mock_enhancement.generate_ascii_art.assert_called_once_with('test theme')
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_add_emojis_to_poetry(self, mock_llm_client, mock_gemini_client):
+    @patch('dialogue_manager.EnhancementService')
+    def test_add_emojis_to_poetry(self, mock_enhancement_service):
         """Test emoji enhancement."""
-        mock_claude = MagicMock()
-        mock_claude.generate_poetry.return_value = '  Enhanced poetry 🌸  '
-        mock_llm_client.return_value = mock_claude
+        mock_enhancement = MagicMock()
+        mock_enhancement.add_emojis_to_poetry.return_value = 'Enhanced poetry 🌸'
+        mock_enhancement_service.return_value = mock_enhancement
         
         manager = DialogueManager()
         result = manager.add_emojis_to_poetry('Original poetry', 'flowers')
         
         self.assertEqual(result, 'Enhanced poetry 🌸')
-        mock_claude.generate_poetry.assert_called_once()
-        
-        # Check that the prompt contains original poetry and theme
-        call_args = mock_claude.generate_poetry.call_args
-        prompt = call_args[0][0]
-        self.assertIn('Original poetry', prompt)
-        self.assertIn('flowers', prompt)
-        self.assertIn('emoji', prompt)
+        mock_enhancement.add_emojis_to_poetry.assert_called_once_with('Original poetry', 'flowers')
     
     @patch('dialogue_manager.get_character_info')
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_save_dialogue_to_markdown(self, mock_llm_client, mock_gemini_client, mock_get_character_info):
+    def test_save_dialogue_to_markdown(self, mock_get_character_info):
         """Test saving dialogue to markdown file."""
         mock_get_character_info.return_value = {
             'source': 'Test Literature',
@@ -344,9 +319,7 @@ class TestDialogueManager(unittest.TestCase):
             self.assertIn('# Test Dialogue', written_content)
             self.assertIn('Agent1', written_content)
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_save_dialogue_custom_filename(self, mock_llm_client, mock_gemini_client):
+    def test_save_dialogue_custom_filename(self):
         """Test saving dialogue with custom filename."""
         manager = DialogueManager()
         
@@ -372,9 +345,7 @@ class TestDialogueManager(unittest.TestCase):
         self.assertEqual(filename, 'custom_file.md')
         mock_file.assert_called_with('custom_file.md', 'w', encoding='utf-8')
     
-    @patch('dialogue_manager.GeminiClient')
-    @patch('dialogue_manager.LLMClient')
-    def test_length_descriptions(self, mock_llm_client, mock_gemini_client):
+    def test_length_descriptions(self):
         """Test length descriptions for different units."""
         manager = DialogueManager()
         

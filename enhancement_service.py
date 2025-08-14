@@ -54,8 +54,9 @@ Return ONLY the ASCII art with no explanatory text or comments."""
             ascii_art = self.client.generate_poetry(prompt, max_tokens=250)
             return ascii_art.strip()
         except Exception as e:
-            # Return a simple fallback ASCII art
-            return "~*~*~*~\n Poetry \n~*~*~*~"
+            # If ASCII art generation fails, proceed without it
+            print(f"Warning: ASCII art generation failed ({str(e)}), proceeding without ASCII art")
+            return ""
     
     def add_emojis_to_poetry(self, poetry: str, theme: str) -> str:
         """

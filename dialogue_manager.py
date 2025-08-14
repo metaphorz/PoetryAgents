@@ -9,6 +9,7 @@ import re
 from typing import List, Dict, Any
 from llm_factory import LLMClientFactory
 from enhancement_service import EnhancementService
+from critique_service import CritiqueService
 from llm_client import LLMClient
 from prompts import create_initial_poetry_prompt, create_response_poetry_prompt, create_title_prompt
 from character_names import get_random_names, get_character_info
@@ -22,6 +23,7 @@ class DialogueManager:
         self.agents = []
         self.conversation_history = []
         self.enhancement_service = EnhancementService()
+        self.critique_service = CritiqueService()
     
     def generate_dialogue(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -95,13 +97,19 @@ class DialogueManager:
                     'llm_used': llm_used
                 })
         
-        return {
+        # Create initial dialogue data
+        dialogue_data = {
             'title': title,
             'ascii_art': ascii_art,
             'agents': agent_names,
             'conversation': self.conversation_history,
             'config': config
         }
+        
+        # Add critique and improved conversation
+        dialogue_data = self.critique_service.critique_and_improve(config, dialogue_data)
+        
+        return dialogue_data
     
     def format_dialogue_output(self, dialogue_data: Dict[str, Any]) -> str:
         """
@@ -141,8 +149,9 @@ class DialogueManager:
             title_client = LLMClient()  # Use default Claude
             title_prompt = create_title_prompt(theme)
             return title_client.generate_poetry(title_prompt, max_tokens=20)
-        except Exception:
-            # Fallback title generation
+        except Exception as e:
+            # If title generation fails, create a simple title from the theme
+            print(f"Warning: Title generation failed ({str(e)}), using simple title from theme")
             words = theme.split()
             return ' '.join(word.capitalize() for word in words[:3])
     
@@ -229,11 +238,13 @@ class DialogueManager:
         content.append("---")
         content.append("")
         
-        # Poetry dialogue with enhanced formatting
+        # Original Poetry dialogue with enhanced formatting
+        content.append("## Original Conversation")
+        content.append("")
         for entry in dialogue_data['conversation']:
             # Agent name as section header with LLM indicator
             llm_indicator = entry.get('llm_used', 'Unknown')
-            content.append(f"## {entry['agent']} *(via {llm_indicator})*")
+            content.append(f"### {entry['agent']} *(via {llm_indicator})*")
             content.append("")
             
             # Poetry without quote blocks for cleaner appearance
@@ -246,6 +257,45 @@ class DialogueManager:
             content.append("")
             content.append("---")
             content.append("")
+        
+        # Add critique section if available
+        if 'critique' in dialogue_data:
+            critique_info = dialogue_data['critique']
+            content.append("## Literary Critique")
+            content.append("")
+            content.append(f"**Judge:** {critique_info['judge_provider']} ({critique_info['judge_model']})")
+            content.append("")
+            content.append("### Critical Analysis")
+            content.append("")
+            
+            # Format critique text with proper line breaks
+            critique_lines = critique_info['critique_text'].split('\n')
+            for line in critique_lines:
+                content.append(line)
+            content.append("")
+            content.append("---")
+            content.append("")
+            
+            # Add edited conversation section
+            content.append("## Revised Conversation")
+            content.append("*Based on the literary critique above*")
+            content.append("")
+            
+            for entry in critique_info['edited_conversation']:
+                # Agent name as section header
+                content.append(f"### {entry['agent']} *(Revised)*")
+                content.append("")
+                
+                # Poetry without quote blocks for cleaner appearance
+                poetry_lines = entry['poetry'].split('\n')
+                for line in poetry_lines:
+                    if line.strip():
+                        content.append(line)
+                    else:
+                        content.append("")
+                content.append("")
+                content.append("---")
+                content.append("")
         
         # Write to file
         with open(filename, 'w', encoding='utf-8') as f:

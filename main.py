@@ -218,7 +218,8 @@ def get_user_input():
         
         if llm1_choice == 'Claude':
             from llm_client import LLMClient
-            claude_models = list(LLMClient.get_available_models().keys())
+            claude_models_dict = LLMClient.get_available_models()
+            claude_models = list(claude_models_dict.keys())
             print("Available Claude models (6 most recent):")
             for i, model_name in enumerate(claude_models, 1):
                 print(f"  {i}. {model_name}")
@@ -227,7 +228,8 @@ def get_user_input():
                 try:
                     choice = int(input("2a. Which Claude model for Agent 1? (enter number): ").strip())
                     if 1 <= choice <= len(claude_models):
-                        claude1_model = claude_models[choice - 1]
+                        selected_display_name = claude_models[choice - 1]
+                        claude1_model = claude_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(claude_models)}")
@@ -236,7 +238,8 @@ def get_user_input():
 
         elif llm1_choice == 'Gemini':
             from gemini_client import GeminiClient
-            gemini_models = list(GeminiClient.get_available_models().keys())
+            gemini_models_dict = GeminiClient.get_available_models()
+            gemini_models = list(gemini_models_dict.keys())
             print("Available Gemini models (6 most relevant):")
             for i, model_name in enumerate(gemini_models, 1):
                 print(f"  {i:2d}. {model_name}")
@@ -245,7 +248,8 @@ def get_user_input():
                 try:
                     choice = int(input("2a. Which Gemini model for Agent 1? (enter number): ").strip())
                     if 1 <= choice <= len(gemini_models):
-                        gemini1_model = gemini_models[choice - 1]
+                        selected_display_name = gemini_models[choice - 1]
+                        gemini1_model = gemini_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(gemini_models)}")
@@ -254,7 +258,8 @@ def get_user_input():
 
         elif llm1_choice == 'OpenAI':
             from openai_client import OpenAIClient
-            openai_models = list(OpenAIClient.get_available_models().keys())
+            openai_models_dict = OpenAIClient.get_available_models()
+            openai_models = list(openai_models_dict.keys())
             print("Available OpenAI models (6 most recent):")
             for i, model_name in enumerate(openai_models, 1):
                 print(f"  {i:2d}. {model_name}")
@@ -263,7 +268,8 @@ def get_user_input():
                 try:
                     choice = int(input("2a. Which OpenAI model for Agent 1? (enter number): ").strip())
                     if 1 <= choice <= len(openai_models):
-                        openai1_model = openai_models[choice - 1]
+                        selected_display_name = openai_models[choice - 1]
+                        openai1_model = openai_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(openai_models)}")
@@ -289,7 +295,8 @@ def get_user_input():
         
         if llm2_choice == 'Claude':
             from llm_client import LLMClient
-            claude_models = list(LLMClient.get_available_models().keys())
+            claude_models_dict = LLMClient.get_available_models()
+            claude_models = list(claude_models_dict.keys())
             print("Available Claude models (6 most recent):")
             for i, model_name in enumerate(claude_models, 1):
                 print(f"  {i}. {model_name}")
@@ -298,7 +305,8 @@ def get_user_input():
                 try:
                     choice = int(input("3a. Which Claude model for Agent 2? (enter number): ").strip())
                     if 1 <= choice <= len(claude_models):
-                        claude2_model = claude_models[choice - 1]
+                        selected_display_name = claude_models[choice - 1]
+                        claude2_model = claude_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(claude_models)}")
@@ -307,7 +315,8 @@ def get_user_input():
 
         elif llm2_choice == 'Gemini':
             from gemini_client import GeminiClient
-            gemini_models = list(GeminiClient.get_available_models().keys())
+            gemini_models_dict = GeminiClient.get_available_models()
+            gemini_models = list(gemini_models_dict.keys())
             print("Available Gemini models (6 most relevant):")
             for i, model_name in enumerate(gemini_models, 1):
                 print(f"  {i:2d}. {model_name}")
@@ -316,7 +325,8 @@ def get_user_input():
                 try:
                     choice = int(input("3a. Which Gemini model for Agent 2? (enter number): ").strip())
                     if 1 <= choice <= len(gemini_models):
-                        gemini2_model = gemini_models[choice - 1]
+                        selected_display_name = gemini_models[choice - 1]
+                        gemini2_model = gemini_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(gemini_models)}")
@@ -325,7 +335,8 @@ def get_user_input():
 
         elif llm2_choice == 'OpenAI':
             from openai_client import OpenAIClient
-            openai_models = list(OpenAIClient.get_available_models().keys())
+            openai_models_dict = OpenAIClient.get_available_models()
+            openai_models = list(openai_models_dict.keys())
             print("Available OpenAI models (6 most recent):")
             for i, model_name in enumerate(openai_models, 1):
                 print(f"  {i:2d}. {model_name}")
@@ -334,7 +345,8 @@ def get_user_input():
                 try:
                     choice = int(input("3a. Which OpenAI model for Agent 2? (enter number): ").strip())
                     if 1 <= choice <= len(openai_models):
-                        openai2_model = openai_models[choice - 1]
+                        selected_display_name = openai_models[choice - 1]
+                        openai2_model = openai_models_dict[selected_display_name]
                         break
                     else:
                         print(f"Please enter a number between 1 and {len(openai_models)}")
@@ -473,23 +485,48 @@ def validate_openrouter_model(model_id):
     """
     try:
         from openrouter_client import OpenRouterClient
+        import os
+        import requests
         
-        # Create a temporary client to check the model
-        temp_client = OpenRouterClient(model_id)
-        status = temp_client.check_model_status(model_id)
+        # Check model availability directly without creating a client instance
+        # This avoids the base class validation that causes the error
+        api_key = os.getenv('OPENROUTER_API_KEY')
+        if not api_key:
+            return False, ["❌ OPENROUTER_API_KEY not found"], []
         
-        if not status.get('available', False):
-            return False, [f"❌ Model {model_id} is not available"], []
+        # Check if model exists in OpenRouter's model list
+        response = requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"}
+        )
+        response.raise_for_status()
+        models = response.json()["data"]
+        
+        # Find the specific model
+        model_found = None
+        for model in models:
+            if model["id"] == model_id:
+                model_found = model
+                break
+        
+        if not model_found:
+            return False, [f"❌ Model '{model_id}' not found in OpenRouter catalog"], []
         
         warnings = []
         alternatives = []
         
         # Check if it's a free model
-        if status.get('is_free_model', False):
+        is_free_model = model_id.endswith(":free")
+        if is_free_model:
             warnings.append("⚠️  This is a FREE model - may have upstream rate limits regardless of your credits")
-            alternatives = temp_client._get_paid_alternatives(model_id)
-            if alternatives:
-                warnings.append(f"💡 Paid alternatives: {', '.join(alternatives[:3])}")
+            # Get paid alternatives without creating a client
+            base_model = model_id.replace(":free", "")
+            alternatives = [
+                "anthropic/claude-3.5-sonnet",
+                "openai/gpt-4o", 
+                "meta-llama/llama-3.2-90b-vision-instruct"
+            ]
+            warnings.append(f"💡 Paid alternatives: {', '.join(alternatives[:3])}")
         
         return True, warnings, alternatives
         

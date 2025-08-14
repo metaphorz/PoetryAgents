@@ -43,7 +43,7 @@ class BaseLLMClient(ABC):
         Initialize model selection.
         
         Args:
-            model: Model display name
+            model: Model display name OR model ID
             
         Returns:
             Tuple of (model_id, model_name)
@@ -52,14 +52,22 @@ class BaseLLMClient(ABC):
         if model is None:
             model = list(self.available_models.keys())[0]
         
-        # Validate model selection
-        if model not in self.available_models:
-            raise ValueError(f"Model '{model}' not available. Choose from: {list(self.available_models.keys())}")
+        # Check if it's a display name (key) or model ID (value)
+        if model in self.available_models:
+            # It's a display name, get the model ID
+            return self.available_models[model], model
+        elif model in self.available_models.values():
+            # It's a model ID, find the display name
+            for display_name, model_id in self.available_models.items():
+                if model_id == model:
+                    return model_id, display_name
         
-        return self.available_models[model], model
+        # If we get here, the model wasn't found
+        raise ValueError(f"Model '{model}' not available. Choose from: {list(self.available_models.keys())} or {list(self.available_models.values())}")
     
+    @classmethod
     @abstractmethod
-    def get_available_models(self, limit_recent: int = 6) -> Dict[str, str]:
+    def get_available_models(cls, limit_recent: int = 6) -> Dict[str, str]:
         """
         Get available models for this provider.
         

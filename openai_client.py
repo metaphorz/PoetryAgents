@@ -6,6 +6,7 @@ Handles communication with OpenAI models for poetry generation.
 import os
 from typing import Optional
 from dotenv import load_dotenv
+from base_llm_client import BaseLLMClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,7 +17,7 @@ except ImportError:
     print("OpenAI library not found. Install with: pip install openai")
     openai = None
 
-class OpenAIClient:
+class OpenAIClient(BaseLLMClient):
     """Client for interacting with OpenAI's models."""
     
     @classmethod
@@ -62,15 +63,7 @@ class OpenAIClient:
             
             return available_models
         except Exception as e:
-            # Fallback to known models if API fails
-            return {
-                "O3 Mini": "o3-mini",
-                "GPT-4o": "gpt-4o",
-                "GPT-4o Mini": "gpt-4o-mini",
-                "O1": "o1",
-                "GPT-4 Turbo": "gpt-4-turbo",
-                "GPT-3.5 Turbo": "gpt-3.5-turbo"
-            }
+            raise Exception(f"Failed to fetch OpenAI models: {str(e)}")
     
     def __init__(self, model: str = None):
         """Initialize the OpenAI client.
@@ -78,29 +71,15 @@ class OpenAIClient:
         Args:
             model: Model display name from get_available_models()
         """
+        # Call parent constructor with API key environment variable
+        super().__init__(model, 'OPENAI_API_KEY')
+    
+    def _initialize_client(self):
+        """Initialize the OpenAI client."""
         if not openai:
             raise ImportError("OpenAI library is required")
-        
-        # Get API key from environment
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
             
-        self.client = openai.OpenAI(api_key=api_key)
-        
-        # Get available models dynamically
-        available_models = self.get_available_models()
-        
-        # Use default if no model specified
-        if model is None:
-            model = list(available_models.keys())[0]  # Use first available model
-        
-        # Set model based on selection
-        if model not in available_models:
-            raise ValueError(f"Model '{model}' not available. Choose from: {list(available_models.keys())}")
-        
-        self.model = available_models[model]
-        self.model_name = model
+        self.client = openai.OpenAI(api_key=self.api_key)
     
     def generate_poetry(self, prompt: str, max_tokens: int = 500) -> str:
         """
@@ -146,17 +125,3 @@ class OpenAIClient:
             
         except Exception as e:
             raise Exception(f"Error generating poetry with OpenAI: {str(e)}")
-    
-    def test_connection(self) -> bool:
-        """
-        Test the connection to the OpenAI API.
-        
-        Returns:
-            True if connection successful, False otherwise
-        """
-        try:
-            test_response = self.generate_poetry("Write a simple two-word poem.", max_tokens=10)
-            return len(test_response.strip()) > 0
-        except Exception as e:
-            print(f"Connection test error: {str(e)}")
-            return False
