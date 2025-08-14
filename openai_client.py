@@ -1,12 +1,15 @@
 """
 OpenAI Client for OpenAI API integration
 Handles communication with OpenAI models for poetry generation.
+Includes security improvements for input validation and error handling.
 """
 
 import os
 from typing import Optional
 from dotenv import load_dotenv
 from base_llm_client import BaseLLMClient
+from security_utils import SecureErrorHandler
+from exceptions import APIError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -63,7 +66,8 @@ class OpenAIClient(BaseLLMClient):
             
             return available_models
         except Exception as e:
-            raise Exception(f"Failed to fetch OpenAI models: {str(e)}")
+            SecureErrorHandler.log_error_securely(e, "openai_model_fetch")
+            raise Exception("Failed to fetch OpenAI models")
     
     def __init__(self, model: str = None):
         """Initialize the OpenAI client.
@@ -83,7 +87,7 @@ class OpenAIClient(BaseLLMClient):
     
     def generate_poetry(self, prompt: str, max_tokens: int = 500) -> str:
         """
-        Generate poetry using OpenAI.
+        Generate poetry using OpenAI with security validation.
         
         Args:
             prompt: The prompt for poetry generation
@@ -92,6 +96,9 @@ class OpenAIClient(BaseLLMClient):
         Returns:
             Generated poetry text
         """
+        # Validate and sanitize input
+        sanitized_prompt, validated_tokens, warnings = self._validate_and_sanitize_input(prompt, max_tokens)
+        
         try:
             # Handle different parameters for different model types
             params = {
@@ -99,7 +106,7 @@ class OpenAIClient(BaseLLMClient):
                 "messages": [
                     {
                         "role": "user",
-                        "content": prompt
+                        "content": sanitized_prompt
                     }
                 ]
             }
@@ -107,12 +114,12 @@ class OpenAIClient(BaseLLMClient):
             # Add model-specific parameters
             if any(model in self.model for model in ['o1', 'o3']):
                 # o1/o3 models use different parameters
-                params['max_completion_tokens'] = max_tokens
+                params['max_completion_tokens'] = validated_tokens
                 # o1/o3 models don't support temperature, top_p, etc.
             else:
                 # Standard GPT models
                 params.update({
-                    'max_tokens': max_tokens,
+                    'max_tokens': validated_tokens,
                     'temperature': 0.7,
                     'top_p': 1.0,
                     'frequency_penalty': 0.0,
@@ -123,5 +130,15 @@ class OpenAIClient(BaseLLMClient):
             
             return response.choices[0].message.content.strip()
             
+        except openai.AuthenticationError as e:
+            SecureErrorHandler.log_error_securely(e, "openai_auth", prompt)
+            raise APIError("OpenAI", "Authentication failed. Please check your API key.", e)
+        except openai.RateLimitError as e:
+            SecureErrorHandler.log_error_securely(e, "openai_rate_limit", prompt)
+            raise APIError("OpenAI", "Rate limit exceeded. Please wait and try again.", e)
+        except openai.APIError as e:
+            SecureErrorHandler.log_error_securely(e, "openai_api", prompt)
+            raise APIError("OpenAI", "Service temporarily unavailable. Please try again later.", e)
         except Exception as e:
-            raise Exception(f"Error generating poetry with OpenAI: {str(e)}")
+            SecureErrorHandler.log_error_securely(e, "openai_generation", prompt)
+            raise APIError("OpenAI", "Poetry generation failed. Please try again.", e)

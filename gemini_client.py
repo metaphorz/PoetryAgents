@@ -1,12 +1,14 @@
 """
 Gemini Client for Google Generative AI integration.
 Refactored to use BaseLLMClient for consistency and reduced duplication.
+Includes security improvements for input validation and error handling.
 """
 
 import os
 from typing import Dict
 from base_llm_client import BaseLLMClient
 from exceptions import APIError, ModelNotAvailableError
+from security_utils import SecureErrorHandler
 
 try:
     import google.generativeai as genai
@@ -70,6 +72,7 @@ class GeminiClient(BaseLLMClient):
             
             return available_models
         except Exception as e:
+            SecureErrorHandler.log_error_securely(e, "gemini_model_fetch")
             return {
                 "Gemini 2.5 Pro": "gemini-2.5-pro",
                 "Gemini 2.5 Flash": "gemini-2.5-flash",
@@ -85,15 +88,19 @@ class GeminiClient(BaseLLMClient):
         self.model_client = genai.GenerativeModel(self.model)
     
     def generate_poetry(self, prompt: str, max_tokens: int = 500) -> str:
-        """Generate poetry using Gemini."""
+        """Generate poetry using Gemini with security validation."""
+        # Validate and sanitize input
+        sanitized_prompt, validated_tokens, warnings = self._validate_and_sanitize_input(prompt, max_tokens)
+        
         try:
             generation_config = genai.types.GenerationConfig(
-                max_output_tokens=max_tokens,
+                max_output_tokens=validated_tokens,
                 temperature=0.7,
                 top_p=0.8,
                 top_k=40
             )
             
+            # Enhanced safety settings
             safety_settings = [
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
@@ -102,7 +109,7 @@ class GeminiClient(BaseLLMClient):
             ]
             
             response = self.model_client.generate_content(
-                prompt,
+                sanitized_prompt,
                 generation_config=generation_config,
                 safety_settings=safety_settings
             )
@@ -114,5 +121,6 @@ class GeminiClient(BaseLLMClient):
             return response.text.strip()
             
         except Exception as e:
-            raise APIError("Gemini", f"Poetry generation failed: {str(e)}", e)
+            SecureErrorHandler.log_error_securely(e, "gemini_generation", prompt)
+            raise APIError("Gemini", "Poetry generation failed. Please try again.", e)
     

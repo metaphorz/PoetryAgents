@@ -1,6 +1,7 @@
 """
 OpenRouter Client for unified LLM API access
 Handles communication with multiple LLM providers through OpenRouter.
+Includes security improvements for input validation and error handling.
 """
 
 import os
@@ -9,6 +10,8 @@ import time
 from typing import Optional, Dict, List, Any
 from dotenv import load_dotenv
 from base_llm_client import BaseLLMClient
+from security_utils import SecureErrorHandler
+from exceptions import APIError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -63,7 +66,8 @@ class OpenRouterClient(BaseLLMClient):
             return available_models
             
         except Exception as e:
-            raise Exception(f"Failed to fetch OpenRouter models: {str(e)}")
+            SecureErrorHandler.log_error_securely(e, "openrouter_model_fetch")
+            raise Exception("Failed to fetch OpenRouter models")
     
     def __init__(self, model: str = None):
         """Initialize the OpenRouter client.
@@ -359,7 +363,7 @@ class OpenRouterClient(BaseLLMClient):
         ]
     
     def generate_poetry(self, prompt: str, max_tokens: int = 500) -> str:
-        """Generate poetry using OpenRouter with retry logic for rate limits.
+        """Generate poetry using OpenRouter with security validation and retry logic.
         
         Args:
             prompt: The prompt for poetry generation
@@ -368,6 +372,9 @@ class OpenRouterClient(BaseLLMClient):
         Returns:
             Generated poetry text
         """
+        # Validate and sanitize input
+        sanitized_prompt, validated_tokens, warnings = self._validate_and_sanitize_input(prompt, max_tokens)
+        
         max_retries = 3
         base_delay = 5  # seconds
         
@@ -378,10 +385,10 @@ class OpenRouterClient(BaseLLMClient):
                     messages=[
                         {
                             "role": "user",
-                            "content": prompt
+                            "content": sanitized_prompt
                         }
                     ],
-                    max_tokens=max_tokens,
+                    max_tokens=validated_tokens,
                     temperature=0.7,
                     extra_headers={
                         "HTTP-Referer": "https://github.com/anthropics/claude-code",
@@ -392,6 +399,7 @@ class OpenRouterClient(BaseLLMClient):
                 return response.choices[0].message.content.strip()
                 
             except Exception as e:
+                SecureErrorHandler.log_error_securely(e, f"openrouter_generation_attempt_{attempt}", prompt)
                 error_str = str(e)
                 
                 # Check for rate limit errors
@@ -407,36 +415,29 @@ class OpenRouterClient(BaseLLMClient):
                             model_name = self.model.split("/")[-1] if "/" in self.model else self.model
                             is_free_model = ":free" in self.model
                             
-                            # Suggest paid alternatives for free models
-                            paid_alternatives = self._get_paid_alternatives(self.model)
-                            
                             suggestions = [
                                 "1. Use a paid model (not ending in ':free') - your credits will work normally",
                                 "2. Wait a few minutes and try again",
                                 "3. Use direct API mode instead of OpenRouter (option 1 in main menu)"
                             ]
                             
-                            if is_free_model and paid_alternatives:
-                                suggestions.insert(1, f"   💡 Try these paid alternatives: {', '.join(paid_alternatives)}")
+                            if is_free_model:
                                 suggestions.append("4. Free models have upstream rate limits regardless of your credits")
                                 suggestions.append("5. Add your own API key at https://openrouter.ai/settings/integrations")
-                            elif is_free_model:
-                                suggestions.append("4. Free models have strict rate limits - consider using paid models")
-                                suggestions.append("5. Add your own API key at https://openrouter.ai/settings/integrations")
                             
-                            raise Exception(f"The model '{model_name}' is temporarily rate-limited. Please try:\n" + 
-                                          "\n".join(suggestions))
+                            raise APIError("OpenRouter", f"The model '{model_name}' is temporarily rate-limited. Please try:\n" + 
+                                          "\n".join(suggestions), e)
                         else:
-                            raise Exception(f"Rate limit exceeded after {max_retries} attempts: {error_str}")
+                            raise APIError("OpenRouter", "Rate limit exceeded. Please wait and try again.", e)
                 
                 # Check for other common errors
                 elif "401" in error_str or "unauthorized" in error_str.lower():
-                    raise Exception(f"OpenRouter API authentication failed. Please check your OPENROUTER_API_KEY in .env file")
+                    raise APIError("OpenRouter", "Authentication failed. Please check your API key.", e)
                 elif "404" in error_str:
-                    raise Exception(f"Model '{self.model}' not found. Please check the model name or try a different model")
+                    raise APIError("OpenRouter", "Model not found. Please check the model name or try a different model.", e)
                 else:
                     # For other errors, don't retry
-                    raise Exception(f"Error generating poetry with OpenRouter: {error_str}")
+                    raise APIError("OpenRouter", "Poetry generation failed. Please try again.", e)
         
         # This should never be reached, but just in case
-        raise Exception("Maximum retry attempts exceeded")
+        raise APIError("OpenRouter", "Maximum retry attempts exceeded. Please try again later.", None)

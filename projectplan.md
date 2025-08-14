@@ -560,3 +560,132 @@ Or get the model_id from the dictionary: `available_models[selected_display_name
 ✅ **After**: User selects "1" → gets "Openai Gpt 5 Chat" → maps to "openai/gpt-5-chat" → works correctly
 
 The original error "Model 'openai/gpt-5-chat' not available" is now fixed. The system properly converts user selections from display names to the correct model IDs that the APIs expect.
+
+---
+
+# SECURITY AUDIT PROJECT PLAN
+
+## Objective
+Perform comprehensive security audit of all LLM API client files to identify vulnerabilities and recommend defensive security improvements.
+
+## Files to Audit
+1. `base_llm_client.py` - Base class and common functionality
+2. `llm_client.py` - Claude/Anthropic client
+3. `gemini_client.py` - Google Gemini client  
+4. `openai_client.py` - OpenAI client
+5. `openrouter_client.py` - OpenRouter client
+
+## Security Audit Checklist
+
+### API Key Handling
+- [ ] Secure storage and access patterns
+- [ ] Environment variable usage
+- [ ] Hardcoded credentials detection
+- [ ] Key exposure in logs/errors
+
+### Input Validation & Sanitization
+- [ ] User input validation
+- [ ] Prompt injection vulnerabilities
+- [ ] Parameter validation
+- [ ] Data type checking
+
+### Error Handling Security
+- [ ] Information disclosure in errors
+- [ ] Sensitive data leakage
+- [ ] Stack trace exposure
+- [ ] Error message security
+
+### Network Security
+- [ ] HTTPS usage
+- [ ] SSL/TLS configuration
+- [ ] Timeout handling
+- [ ] Request/response security
+
+### Data Validation
+- [ ] Output validation
+- [ ] Response parsing security
+- [ ] JSON handling vulnerabilities
+- [ ] Memory safety
+
+### Code Security Practices
+- [ ] Injection vulnerability patterns
+- [ ] Authentication mechanisms
+- [ ] Authorization controls
+- [ ] Logging security
+
+## Security Risk Assessment Levels
+- **CRITICAL**: Immediate security risk requiring urgent fix
+- **HIGH**: Significant vulnerability with high exploit potential
+- **MEDIUM**: Security concern with moderate risk
+- **LOW**: Minor security improvement opportunity
+- **INFO**: Security best practice recommendation
+
+## Security Audit Results
+
+### Files Audited
+- [x] `base_llm_client.py` - Base class and common functionality
+- [x] `llm_client.py` - Claude/Anthropic client
+- [x] `gemini_client.py` - Google Gemini client  
+- [x] `openai_client.py` - OpenAI client
+- [x] `openrouter_client.py` - OpenRouter client
+
+### Critical Security Findings
+
+#### 🚨 HIGH SEVERITY VULNERABILITIES (10 Issues Found)
+
+1. **PROMPT INJECTION VULNERABILITY** - All Clients (CRITICAL)
+   - **Location**: All `generate_poetry()` methods
+   - **Risk**: User input passed directly to LLM APIs without sanitization
+   - **Impact**: Malicious prompts could bypass intended behavior
+   - **Files**: llm_client.py:67, gemini_client.py:104, openai_client.py:102, openrouter_client.py:381
+
+2. **INFORMATION DISCLOSURE IN ERROR HANDLING** - base_llm_client.py (HIGH)
+   - **Location**: Lines 108-112 
+   - **Risk**: Generic exception handling masks security-relevant errors
+   - **Impact**: Security issues could go unnoticed
+
+3. **VERBOSE ERROR MESSAGES** - openrouter_client.py (HIGH)
+   - **Location**: Lines 394-439
+   - **Risk**: Detailed error messages expose system architecture
+   - **Impact**: Attackers gain system knowledge for exploitation
+
+4. **MODEL PARAMETER INJECTION** - base_llm_client.py (MEDIUM)
+   - **Location**: Lines 41-66
+   - **Risk**: Insufficient input validation on model parameter
+   - **Impact**: Unexpected model selection or system errors
+
+5. **API ERROR INFORMATION LEAKAGE** - Multiple Clients (MEDIUM)
+   - **Location**: Various exception handlers
+   - **Risk**: Original API errors exposed in application errors  
+   - **Impact**: Internal API behavior exposed to users
+
+### Security Status Summary
+
+| Security Area | Status | Critical Issues |
+|---------------|--------|-----------------|
+| API Key Handling | ✅ GOOD | 0 |
+| Input Validation | ❌ POOR | 4 |
+| Error Handling | ❌ POOR | 3 |
+| Network Security | ⚠️ FAIR | 1 |
+| Data Validation | ❌ POOR | 2 |
+| **OVERALL** | **❌ HIGH RISK** | **10** |
+
+### Positive Security Findings
+
+#### ✅ Security Best Practices Implemented
+
+1. **API Key Management**: All clients use environment variables correctly
+2. **Official SDK Usage**: Most clients use official provider SDKs
+3. **Content Safety Controls**: Gemini client implements comprehensive safety settings
+4. **Structured Exception Handling**: Custom exception types defined
+
+### Immediate Actions Required
+
+1. **Implement Input Sanitization** - Add prompt injection protection
+2. **Fix Exception Handling** - Replace generic `except Exception:` blocks  
+3. **Add Parameter Validation** - Validate all user inputs
+4. **Reduce Information Disclosure** - Remove sensitive data from error messages
+
+### Files Generated
+- `/tests/auto/security_audit_log.md` - Detailed security analysis
+- `/tests/auto/security_recommendations.md` - Specific fixes and code improvements

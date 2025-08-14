@@ -1,12 +1,14 @@
 """
 Base class for all LLM clients to eliminate code duplication.
 Provides common functionality for API key management, model handling, and poetry generation.
+Includes security measures for input validation and error handling.
 """
 
 import os
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 from dotenv import load_dotenv
+from security_utils import SecurityValidator, SecureErrorHandler, SecurityValidationResult
 
 load_dotenv()
 
@@ -40,7 +42,7 @@ class BaseLLMClient(ABC):
     
     def _initialize_model(self, model: str) -> Tuple[str, str]:
         """
-        Initialize model selection.
+        Initialize model selection with security validation.
         
         Args:
             model: Model display name OR model ID
@@ -51,6 +53,13 @@ class BaseLLMClient(ABC):
         # Use default if no model specified
         if model is None:
             model = list(self.available_models.keys())[0]
+        
+        # Validate model parameter for security
+        is_valid, sanitized_model = SecurityValidator.validate_model_parameter(model)
+        if not is_valid:
+            raise ValueError("Invalid model parameter provided")
+        
+        model = sanitized_model
         
         # Check if it's a display name (key) or model ID (value)
         if model in self.available_models:
@@ -63,7 +72,7 @@ class BaseLLMClient(ABC):
                     return model_id, display_name
         
         # If we get here, the model wasn't found
-        raise ValueError(f"Model '{model}' not available. Choose from: {list(self.available_models.keys())} or {list(self.available_models.values())}")
+        raise ValueError("Specified model is not available")
     
     @classmethod
     @abstractmethod
@@ -84,10 +93,40 @@ class BaseLLMClient(ABC):
         """Initialize the provider-specific client."""
         pass
     
+    def _validate_and_sanitize_input(self, prompt: str, max_tokens: int = 500) -> Tuple[str, int, List[str]]:
+        """
+        Validate and sanitize input parameters for security.
+        
+        Args:
+            prompt: The prompt for poetry generation
+            max_tokens: Maximum number of tokens to generate
+            
+        Returns:
+            Tuple of (sanitized_prompt, validated_max_tokens, warnings)
+        """
+        # Validate and sanitize prompt
+        validation_result = SecurityValidator.sanitize_prompt(prompt)
+        
+        if not validation_result.is_safe:
+            SecureErrorHandler.log_error_securely(
+                ValueError("Potentially dangerous prompt blocked"),
+                "prompt_validation",
+                prompt
+            )
+            # Still allow execution with sanitized content for user experience
+            # but log the security event
+        
+        # Validate max_tokens
+        is_valid_tokens, validated_tokens = SecurityValidator.validate_max_tokens(max_tokens)
+        if not is_valid_tokens:
+            validation_result.warnings.append(f"max_tokens adjusted from {max_tokens} to {validated_tokens}")
+        
+        return validation_result.sanitized_content, validated_tokens, validation_result.warnings
+    
     @abstractmethod
     def generate_poetry(self, prompt: str, max_tokens: int = 500) -> str:
         """
-        Generate poetry using the LLM.
+        Generate poetry using the LLM with security validation.
         
         Args:
             prompt: The prompt for poetry generation
@@ -100,7 +139,7 @@ class BaseLLMClient(ABC):
     
     def test_connection(self) -> bool:
         """
-        Test the connection to the API.
+        Test the connection to the API with secure error handling.
         
         Returns:
             True if connection successful, False otherwise
@@ -108,7 +147,9 @@ class BaseLLMClient(ABC):
         try:
             test_response = self.generate_poetry("Write a simple two-word poem.", max_tokens=10)
             return len(test_response.strip()) > 0
-        except Exception:
+        except Exception as e:
+            # Log error securely without exposing details to caller
+            SecureErrorHandler.log_error_securely(e, "connection_test")
             return False
     
     def get_model_info(self) -> Dict[str, str]:
