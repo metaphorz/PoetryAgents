@@ -9,6 +9,7 @@ from llm_client import LLMClient
 from gemini_client import GeminiClient
 from openai_client import OpenAIClient
 from openrouter_client import OpenRouterClient
+from turner_rules import TurnerRulesManager
 
 
 class CritiqueService:
@@ -18,9 +19,9 @@ class CritiqueService:
     
     def __init__(self):
         """Initialize the critique service."""
-        pass
+        self.turner_rules = TurnerRulesManager()
     
-    def select_judge_editor(self, config: Dict[str, Any]) -> Tuple[str, Any]:
+    def select_judge(self, config: Dict[str, Any]) -> Tuple[str, Any]:
         """
         Select the judge-editor LLM based on which companies/providers are NOT used in the conversation.
         Ensures judge-editor uses a different company than any agent.
@@ -272,7 +273,7 @@ class CritiqueService:
             return dialogue_data
     
     def _create_critique_prompt(self, dialogue_data: Dict[str, Any]) -> str:
-        """Create a prompt for critiquing the poetry conversation."""
+        """Create a prompt for critiquing the poetry conversation using Turner-based rules."""
         
         # Extract conversation details
         theme = dialogue_data['config']['theme']
@@ -287,7 +288,11 @@ class CritiqueService:
             poetry = entry['poetry']
             conversation_text += f"**{agent_name}:**\n{poetry}\n\n"
         
-        prompt = f"""You are an expert poetry critic and literary scholar. Please provide a detailed critique of this poetry conversation between {len(agents)} poets.
+        # Get Turner-based critique rules
+        turner_critique_rules = self.turner_rules.get_critique_rules()
+        avoid_list = self.turner_rules.get_avoid_list()
+        
+        prompt = f"""You are an expert poetry critic and literary scholar specializing in Fred Turner's comprehensive approach to poetry evaluation. Please provide a detailed critique of this poetry conversation between {len(agents)} poets.
 
 **CONVERSATION DETAILS:**
 - Theme: {theme}
@@ -297,30 +302,54 @@ class CritiqueService:
 **CONVERSATION TO CRITIQUE:**
 {conversation_text}
 
+**TURNER-BASED CRITIQUE FRAMEWORK:**
+Apply these comprehensive evaluation criteria based on Fred Turner's poetry guidelines:
+
+{turner_critique_rules}
+
+**SPECIFIC ISSUES TO IDENTIFY:**
+Look for these common problems:
+{chr(10).join(f"- {item}" for item in avoid_list)}
+
 **CRITIQUE INSTRUCTIONS:**
 Analyze this poetry conversation and provide constructive feedback on:
 
-1. **Thematic Coherence**: How well does the conversation stay true to the theme of "{theme}"?
+1. **Thematic Coherence**: How well does the conversation stay true to the theme of "{theme}"? Does it maintain thematic consistency throughout?
 
-2. **Poetic Form Adherence**: How well do the poems follow the {form} form requirements?
+2. **Poetic Form Adherence**: How well do the poems follow the {form} form requirements? Check structural rules, meter, and formal constraints.
 
-3. **Literary Quality**: Assess the imagery, metaphors, word choice, and emotional resonance.
+3. **Literary Quality & Craft**: 
+   - Assess imagery (concrete vs abstract, sensory richness)
+   - Evaluate metaphors, similes, and literary devices
+   - Analyze word choice and language accessibility
+   - Check for archaic language or forced inversions
 
-4. **Conversational Flow**: How well do the poems respond to and build upon each other?
+4. **Emotional Complexity**: 
+   - Does the poetry use mixed emotions (positive + negative)?
+   - Is there emotional depth and sophistication?
+   - Are emotions one-dimensional or complex?
 
-5. **Character Voice**: Does each poet have a distinct voice and perspective?
+5. **Technical Execution**:
+   - Natural scansion and rhythm
+   - Appropriate use of rhyme (if any)
+   - Flow and readability
+   - Effectiveness of endings
 
-6. **Areas for Improvement**: What specific aspects could be enhanced?
+6. **Conversational Flow**: How well do the poems respond to and build upon each other?
+
+7. **Character Voice**: Does each poet have a distinct voice and perspective?
+
+8. **Originality**: Are there clichés or overused expressions that should be avoided?
 
 **FORMAT YOUR CRITIQUE:**
-Provide a structured critique with clear sections for each area above. Be specific about what works well and what could be improved. Suggest concrete improvements where possible.
+Provide a structured critique with clear sections for each area above. Be specific about what works well and what could be improved according to Turner's guidelines. Suggest concrete improvements where possible.
 
 Your critique:"""
 
         return prompt
     
     def _create_edit_prompt(self, dialogue_data: Dict[str, Any], critique: str) -> str:
-        """Create a prompt for editing the conversation based on critique."""
+        """Create a prompt for editing the conversation based on Turner-based critique and improvement guidelines."""
         
         # Extract conversation details
         theme = dialogue_data['config']['theme']
@@ -335,7 +364,12 @@ Your critique:"""
             poetry = entry['poetry']
             original_conversation += f"**{agent_name}:**\n{poetry}\n\n"
         
-        prompt = f"""Based on your critique, please improve this poetry conversation. Keep the same structure and participants, but enhance the poems according to your feedback.
+        # Get Turner-based editing rules
+        turner_editing_rules = self.turner_rules.get_editing_rules()
+        enhance_list = self.turner_rules.get_enhance_list()
+        avoid_list = self.turner_rules.get_avoid_list()
+        
+        prompt = f"""Based on your critique, please improve this poetry conversation using Fred Turner's comprehensive poetry improvement guidelines. Keep the same structure and participants, but enhance the poems according to both your critique and Turner's standards.
 
 **ORIGINAL CONVERSATION:**
 {original_conversation}
@@ -343,29 +377,50 @@ Your critique:"""
 **YOUR CRITIQUE:**
 {critique}
 
+**TURNER-BASED IMPROVEMENT GUIDELINES:**
+Apply these specific improvement strategies:
+
+{turner_editing_rules}
+
+**ENHANCEMENT PRIORITIES:**
+Focus on strengthening these elements:
+{chr(10).join(f"- {item}" for item in enhance_list)}
+
+**ELEMENTS TO AVOID/CORRECT:**
+Eliminate or improve these issues:
+{chr(10).join(f"- {item}" for item in avoid_list)}
+
 **EDITING INSTRUCTIONS:**
-1. Maintain the same theme: {theme}
-2. Keep the same poetic form: {form}
-3. Preserve the same participants: {', '.join(agents)}
-4. Keep the same number of poems in the same order
-5. Improve based on your critique above
-6. Enhance thematic coherence, literary quality, and conversational flow
-7. Maintain distinct voices for each poet
+1. **Preserve Structure**: Maintain the same theme ({theme}), poetic form ({form}), and participants ({', '.join(agents)})
+2. **Keep Organization**: Same number of poems in the same order
+3. **Apply Turner Standards**: Use the improvement guidelines above systematically
+4. **Enhance Emotional Complexity**: Add mixed emotions (positive + negative) for depth
+5. **Improve Imagery**: Replace abstract language with concrete, sensory-rich descriptions
+6. **Fix Technical Issues**: Correct scansion, remove forced inversions, strengthen endings
+7. **Eliminate Problems**: Remove archaic language, clichés, and awkward phrasing
+8. **Maintain Voice**: Preserve distinct character voices while improving quality
+9. **Strengthen Coherence**: Enhance thematic connections and conversational flow
+10. **Form Compliance**: Ensure strict adherence to {form} requirements
+
+**SPECIFIC FORM GUIDANCE for {form.upper()}:**
+- Follow all structural rules precisely
+- Pay special attention to meter and rhythm patterns
+- Ensure endings are both formally correct and emotionally resonant
 
 **FORMAT YOUR EDITED CONVERSATION:**
 Present the improved conversation using this exact format:
 
 **{agents[0]}:**
-[improved poem]
+[improved poem following Turner guidelines]
 
 **{agents[1]}:**
-[improved poem]
+[improved poem following Turner guidelines]
 
 {"**" + agents[0] + ":**" if len(conversation) > 2 else ""}
-{"[improved poem]" if len(conversation) > 2 else ""}
+{"[improved poem following Turner guidelines]" if len(conversation) > 2 else ""}
 
 {"**" + agents[1] + ":**" if len(conversation) > 3 else ""}
-{"[improved poem]" if len(conversation) > 3 else ""}
+{"[improved poem following Turner guidelines]" if len(conversation) > 3 else ""}
 
 Continue this pattern for all poems in the original conversation.
 
