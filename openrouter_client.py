@@ -213,15 +213,32 @@ class OpenRouterClient(BaseLLMClient):
             models = response.json()["data"]
             
             if not search_term:
-                # Filter out BYOK models and return first 20
+                # Filter out BYOK models and audio-only models, return first 20
                 filtered_models = []
                 for model in models:
                     model_id = model["id"]
                     description = model.get("description", "")
-                    # Skip BYOK models only
-                    if not ("BYOK is required" in description or 
-                            "bring your own key" in description.lower()):
-                        filtered_models.append(model)
+                    
+                    # Skip BYOK models
+                    if ("BYOK is required" in description or 
+                        "bring your own key" in description.lower()):
+                        continue
+                    
+                    # Skip audio-only models that don't support text-only conversations
+                    modalities = model.get("modalities", [])
+                    if modalities and "text" not in modalities and "chat" not in modalities:
+                        continue
+                    
+                    # Skip specific known audio-only models
+                    audio_only_models = [
+                        "openai/gpt-4o-audio-preview",
+                        "openai/gpt-4o-realtime-preview",
+                        "openai/gpt-5-chat"  # Requires audio modality
+                    ]
+                    if model_id in audio_only_models:
+                        continue
+                        
+                    filtered_models.append(model)
                 return filtered_models[:20]
             
             search_lower = search_term.lower()
@@ -235,6 +252,20 @@ class OpenRouterClient(BaseLLMClient):
                 # Skip models that require "Bring Your Own Key" (BYOK)
                 if ("BYOK is required" in description or 
                     "bring your own key" in description.lower()):
+                    continue
+                
+                # Skip audio-only models that don't support text-only conversations
+                modalities = model.get("modalities", [])
+                if modalities and "text" not in modalities and "chat" not in modalities:
+                    continue
+                
+                # Skip specific known audio-only models
+                audio_only_models = [
+                    "openai/gpt-4o-audio-preview",
+                    "openai/gpt-4o-realtime-preview",
+                    "openai/gpt-5-chat"  # Requires audio modality
+                ]
+                if model_id in audio_only_models:
                     continue
                 
                 if (search_lower in model_id.lower() or 
@@ -429,6 +460,16 @@ class OpenRouterClient(BaseLLMClient):
                                           "\n".join(suggestions), e)
                         else:
                             raise APIError("OpenRouter", "Rate limit exceeded. Please wait and try again.", e)
+                
+                # Check for audio modality errors
+                elif "audio" in error_str.lower() and ("modality" in error_str.lower() or "content" in error_str.lower()):
+                    model_name = self.model.split("/")[-1] if "/" in self.model else self.model
+                    suggestions = [
+                        f"The model '{model_name}' requires audio input/output, but this system only supports text.",
+                        "Please select a different model that supports text-only conversations.",
+                        "Try searching for models like 'claude', 'gpt-4o', or 'llama' instead."
+                    ]
+                    raise APIError("OpenRouter", "\n".join(suggestions), e)
                 
                 # Check for other common errors
                 elif "401" in error_str or "unauthorized" in error_str.lower():

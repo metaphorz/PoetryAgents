@@ -25,7 +25,7 @@ class BaseLLMClient(ABC):
         """
         self.api_key_env = api_key_env
         self.api_key = self._get_api_key()
-        self.available_models = self.get_available_models()
+        self.available_models = self.__class__.get_available_models()
         self.model, self.model_name = self._initialize_model(model)
         self._initialize_client()
     

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head><title>Model Loading Test</title></head>
+<body>
+    <select id="testProvider">
+        <option value="">Select Provider...</option>
+        <option value="Claude">Claude</option>
+        <option value="OpenAI">OpenAI</option>
+    </select>
+    <select id="testModel" disabled>
+        <option value="">First select a provider...</option>
+    </select>
+    
+    <script>
+        // Extract model data from main HTML file
+        const modelData = {
+            "Claude": {
+                        "Claude Opus 4.1": "claude-opus-4-1-20250805",
+                        "Claude Opus 4": "claude-opus-4-20250514",
+                        "Claude Sonnet 4": "claude-sonnet-4-20250514",
+                        "Claude Sonnet 3.7": "claude-3-7-sonnet-20250219",
+                        "Claude Sonnet 3.5 (New)": "claude-3-5-sonnet-20241022",
+                        "Claude Haiku 3.5": "claude-3-5-haiku-20241022"
+            },
+            "Gemini": {
+                        "Gemini 2.5 Pro": "gemini-2.5-pro",
+                        "Gemini 2.5 Flash": "gemini-2.5-flash",
+                        "Gemini 2.5 Flash-Lite": "gemini-2.5-flash-lite",
+                        "Gemini 2.5 Pro Preview 03-25": "gemini-2.5-pro-preview-03-25",
+                        "Gemini 2.5 Pro Preview 05-06": "gemini-2.5-pro-preview-05-06",
+                        "Gemini 2.5 Pro Preview": "gemini-2.5-pro-preview-06-05"
+            },
+            "OpenAI": {
+                        "Gpt 4.1 Nano": "gpt-4.1-nano",
+                        "Gpt 4.1 Nano 2025 04 14": "gpt-4.1-nano-2025-04-14",
+                        "Gpt 4.1 Mini": "gpt-4.1-mini",
+                        "Gpt 4.1 Mini 2025 04 14": "gpt-4.1-mini-2025-04-14",
+                        "Gpt 4.1": "gpt-4.1",
+                        "Gpt 4.1 2025 04 14": "gpt-4.1-2025-04-14"
+            }
+};
+
+        // OpenRouter model data organized by provider
+        
+        function loadTestModels(provider) {
+            const modelSelect = document.getElementById('testModel');
+            
+            if (!provider) {
+                modelSelect.disabled = true;
+                modelSelect.innerHTML = '<option value="">First select a provider...</option>';
+                return;
+            }
+
+            const models = modelData[provider];
+            
+            if (!models) {
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                modelSelect.disabled = true;
+                return;
+            }
+            
+            modelSelect.innerHTML = '<option value="">Select model...</option>';
+            
+            Object.entries(models).forEach(([displayName, modelId]) => {
+                const option = document.createElement('option');
+                option.value = modelId;
+                option.textContent = displayName;
+                modelSelect.appendChild(option);
+            });
+            
+            modelSelect.disabled = false;
+            console.log(`Loaded ${Object.keys(models).length} models for ${provider}`);
+        }
+        
+        document.getElementById('testProvider').addEventListener('change', function() {
+            loadTestModels(this.value);
+        });
+        
+        // Auto-test
+        setTimeout(() => {
+            console.log('Testing Claude models...');
+            loadTestModels('Claude');
+            console.log('Claude model count:', document.getElementById('testModel').options.length - 1);
+            
+            console.log('Testing OpenAI models...');  
+            loadTestModels('OpenAI');
+            console.log('OpenAI model count:', document.getElementById('testModel').options.length - 1);
+        }, 100);
+    </script>
+</body>
+</html>

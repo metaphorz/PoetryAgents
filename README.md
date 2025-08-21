@@ -49,6 +49,14 @@ A system that creates poetry dialogues between AI agents using Claude, Gemini, O
      ```
 
 3. **Run the system:**
+
+   **Option A: Web Interface (Recommended - User Friendly)**
+   ```bash
+   python start_web.py
+   ```
+   Then open your browser to: http://localhost:5000
+   
+   **Option B: Command Line Interface**
    ```bash
    python main.py
    ```

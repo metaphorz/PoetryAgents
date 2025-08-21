@@ -165,8 +165,8 @@ class SecurityValidator:
         if any(char in model for char in dangerous_chars):
             return False, ""
         
-        # Only allow alphanumeric, hyphens, underscores, periods, slashes, and colons
-        if not re.match(r'^[a-zA-Z0-9\-_./:]+$', model):
+        # Only allow alphanumeric, hyphens, underscores, periods, slashes, colons, and spaces
+        if not re.match(r'^[a-zA-Z0-9\-_./: ]+$', model):
             return False, ""
         
         # Check length
@@ -174,7 +174,7 @@ class SecurityValidator:
             return False, ""
         
         # Check if the sanitized version is the same as original
-        sanitized = re.sub(r'[^a-zA-Z0-9\-_./:]', '', model)
+        sanitized = re.sub(r'[^a-zA-Z0-9\-_./ :]', '', model)
         if sanitized != model:
             return False, ""
         

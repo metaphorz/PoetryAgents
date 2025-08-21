@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poetry Agents - AI Poetry Dialogue Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px solid #e8f4f8;
+            border-radius: 15px;
+            background: #f8fcff;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .poets-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .poet-selection {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e1f5fe;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .poet-selection h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #34495e;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 2px solid #e8f4f8;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .radio-item:hover {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .radio-item input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .radio-item.selected {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .theme-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #e8f5e8;
+        }
+
+        .theme-section h3 {
+            color: #27ae60;
+            margin-bottom: 15px;
+        }
+
+        #theme {
+            font-size: 18px;
+            padding: 15px;
+            border: 2px solid #27ae60;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .generate-btn:hover {
+            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(39, 174, 96, 0.3);
+        }
+
+        .generate-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+
+        .error {
+            background: #fee;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        @media (max-width: 768px) {
+            .poets-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .radio-group {
+                flex-direction: column;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Poetry Agents</h1>
+            <p>Create beautiful poetry dialogues between AI agents</p>
+        </div>
+
+        <div class="form-container">
+            <form id="poetryForm">
+                <!-- API Mode Selection -->
+                <div class="section">
+                    <h2>🔧 API Mode Selection</h2>
+                    <div class="form-group">
+                        <label>Choose how to access LLM models:</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="directAPI" name="apiMode" value="direct" checked>
+                                <label for="directAPI">Direct API - Use individual provider APIs</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="openRouterAPI" name="apiMode" value="openrouter">
+                                <label for="openRouterAPI">OpenRouter - Access 100+ models through one API</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Poet Selection Section -->
+                <div class="section">
+                    <h2>🤖 Select Your Poets</h2>
+                    <div class="poets-container">
+                        <!-- Poet 1 -->
+                        <div class="poet-selection">
+                            <h3>Poet 1</h3>
+                            <div class="form-group">
+                                <label for="poet1Provider">LLM Provider:</label>
+                                <select id="poet1Provider" name="poet1Provider" required>
+                                    <option value="">Select Provider...</option>
+                                    <option value="claude">Claude (Anthropic)</option>
+                                    <option value="gemini">Gemini (Google)</option>
+                                    <option value="openai">OpenAI</option>
+                                    <option value="openrouter">OpenRouter (100+ models)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="poet1Model">Specific Model:</label>
+                                <select id="poet1Model" name="poet1Model" disabled required>
+                                    <option value="">First select a provider...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Poet 2 -->
+                        <div class="poet-selection">
+                            <h3>Poet 2</h3>
+                            <div class="form-group">
+                                <label for="poet2Provider">LLM Provider:</label>
+                                <select id="poet2Provider" name="poet2Provider" required>
+                                    <option value="">Select Provider...</option>
+                                    <option value="claude">Claude (Anthropic)</option>
+                                    <option value="gemini">Gemini (Google)</option>
+                                    <option value="openai">OpenAI</option>
+                                    <option value="openrouter">OpenRouter (100+ models)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="poet2Model">Specific Model:</label>
+                                <select id="poet2Model" name="poet2Model" disabled required>
+                                    <option value="">First select a provider...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theme Section -->
+                <div class="section">
+                    <div class="theme-section">
+                        <h3>🎨 Poetry Theme</h3>
+                        <div class="form-group">
+                            <label for="theme">Enter your theme or inspiration:</label>
+                            <input type="text" id="theme" name="theme" placeholder="e.g., 'a walk in the snow', 'dancing under stars', 'the sound of rain'..." required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Poetry Form Section -->
+                <div class="section">
+                    <h2>📝 Poetry Settings</h2>
+                    <div class="form-group">
+                        <label>Poetry Form:</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="haiku" name="form" value="haiku" checked>
+                                <label for="haiku">Haiku (5-7-5)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="tanka" name="form" value="tanka">
+                                <label for="tanka">Tanka (5 lines)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="prose" name="form" value="prose">
+                                <label for="prose">Prose</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="sonnet" name="form" value="sonnet">
+                                <label for="sonnet">Sonnet (14 lines)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="villanelle" name="form" value="villanelle">
+                                <label for="villanelle">Villanelle (19 lines)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="limerick" name="form" value="limerick">
+                                <label for="limerick">Limerick (5 lines)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="ballad" name="form" value="ballad">
+                                <label for="ballad">Ballad (4 stanzas)</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="ghazal" name="form" value="ghazal">
+                                <label for="ghazal">Ghazal (7 couplets)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversation Length Section -->
+                <div class="section">
+                    <h2>💬 Conversation Length</h2>
+                    <div class="form-group">
+                        <label>Number of rounds (each poet writes once per round):</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="rounds1" name="conversationLength" value="1">
+                                <label for="rounds1">1 Round</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="rounds2" name="conversationLength" value="2" checked>
+                                <label for="rounds2">2 Rounds</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="rounds3" name="conversationLength" value="3">
+                                <label for="rounds3">3 Rounds</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="rounds4" name="conversationLength" value="4">
+                                <label for="rounds4">4 Rounds</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emoji Section -->
+                <div class="section">
+                    <h2>😊 Enhancement Options</h2>
+                    <div class="form-group">
+                        <label>Add emojis to enhance the poetry:</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="emojiYes" name="emojis" value="true">
+                                <label for="emojiYes">Yes, add emojis</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="emojiNo" name="emojis" value="false" checked>
+                                <label for="emojiNo">No emojis</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="generate-btn" id="generateBtn">
+                    ✨ Generate Poetry Dialogue ✨
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Creating your poetry dialogue... This may take a moment.</p>
+            </div>
+
+            <div class="results" id="results">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Radio button styling and API mode handling
+        document.addEventListener('DOMContentLoaded', function() {
+            const radioItems = document.querySelectorAll('.radio-item');
+            radioItems.forEach(item => {
+                const radio = item.querySelector('input[type="radio"]');
+                
+                item.addEventListener('click', function() {
+                    if (!radio.checked) {
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change'));
+                    }
+                });
+                
+                radio.addEventListener('change', function() {
+                    // Remove selected class from siblings
+                    const siblings = radio.closest('.radio-group').querySelectorAll('.radio-item');
+                    siblings.forEach(sibling => sibling.classList.remove('selected'));
+                    
+                    // Add selected class to current item
+                    if (radio.checked) {
+                        item.classList.add('selected');
+                    }
+                });
+                
+                // Set initial state
+                if (radio.checked) {
+                    item.classList.add('selected');
+                }
+            });
+
+            // Handle API mode changes
+            const apiModeRadios = document.querySelectorAll('input[name="apiMode"]');
+            apiModeRadios.forEach(radio => {
+                radio.addEventListener('change', updateProviderOptions);
+            });
+
+            // Initialize provider options
+            updateProviderOptions();
+        });
+
+        function updateProviderOptions() {
+            const apiMode = document.querySelector('input[name="apiMode"]:checked').value;
+            const poet1Provider = document.getElementById('poet1Provider');
+            const poet2Provider = document.getElementById('poet2Provider');
+            
+            // Reset model selects
+            document.getElementById('poet1Model').disabled = true;
+            document.getElementById('poet1Model').innerHTML = '<option value="">First select a provider...</option>';
+            document.getElementById('poet2Model').disabled = true;
+            document.getElementById('poet2Model').innerHTML = '<option value="">First select a provider...</option>';
+            
+            if (apiMode === 'direct') {
+                // Direct API mode - show individual providers
+                const directOptions = `
+                    <option value="">Select Provider...</option>
+                    <option value="claude">Claude (Anthropic)</option>
+                    <option value="gemini">Gemini (Google)</option>
+                    <option value="openai">OpenAI</option>
+                `;
+                poet1Provider.innerHTML = directOptions;
+                poet2Provider.innerHTML = directOptions;
+            } else {
+                // OpenRouter mode - show only OpenRouter
+                const openrouterOptions = `
+                    <option value="">Select Provider...</option>
+                    <option value="openrouter">OpenRouter (100+ models)</option>
+                `;
+                poet1Provider.innerHTML = openrouterOptions;
+                poet2Provider.innerHTML = openrouterOptions;
+            }
+        }
+
+        // Model loading functions
+        async function loadModels(provider, targetSelect) {
+            targetSelect.disabled = true;
+            targetSelect.innerHTML = '<option value="">Loading models...</option>';
+            
+            try {
+                const response = await fetch(`/api/models/${provider}`);
+                const models = await response.json();
+                
+                targetSelect.innerHTML = '<option value="">Select model...</option>';
+                Object.entries(models).forEach(([displayName, modelId]) => {
+                    const option = document.createElement('option');
+                    option.value = modelId;
+                    option.textContent = displayName;
+                    targetSelect.appendChild(option);
+                });
+                
+                targetSelect.disabled = false;
+            } catch (error) {
+                targetSelect.innerHTML = '<option value="">Error loading models</option>';
+                console.error('Error loading models:', error);
+            }
+        }
+
+        // Provider change handlers
+        document.getElementById('poet1Provider').addEventListener('change', function() {
+            const provider = this.value;
+            const modelSelect = document.getElementById('poet1Model');
+            
+            if (provider) {
+                loadModels(provider, modelSelect);
+            } else {
+                modelSelect.disabled = true;
+                modelSelect.innerHTML = '<option value="">First select a provider...</option>';
+            }
+        });
+
+        document.getElementById('poet2Provider').addEventListener('change', function() {
+            const provider = this.value;
+            const modelSelect = document.getElementById('poet2Model');
+            
+            if (provider) {
+                loadModels(provider, modelSelect);
+            } else {
+                modelSelect.disabled = true;
+                modelSelect.innerHTML = '<option value="">First select a provider...</option>';
+            }
+        });
+
+        // Form submission
+        document.getElementById('poetryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            // Show loading
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                const resultsDiv = document.getElementById('results');
+                if (response.ok) {
+                    resultsDiv.className = 'results success';
+                    resultsDiv.innerHTML = `
+                        <h3>✅ Poetry Generated Successfully!</h3>
+                        <p><strong>File saved:</strong> ${result.filename}</p>
+                        <div style="margin-top: 15px;">
+                            <a href="/download/${result.filename}" class="generate-btn" style="display: inline-block; text-decoration: none; padding: 10px 20px; font-size: 14px;">
+                                📥 Download Poetry File
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.error || 'Generation failed');
+                }
+                
+            } catch (error) {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.className = 'results error';
+                resultsDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                    <p>Please check your settings and try again.</p>
+                `;
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

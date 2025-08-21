@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Diagnostic Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 2px solid #ddd; border-radius: 10px; background: #f9f9f9; }
+        h1 { color: #2c3e50; }
+        h3 { color: #3498db; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        select { width: 100%; max-width: 300px; padding: 10px; border: 2px solid #bdc3c7; border-radius: 5px; font-size: 14px; }
+        select:disabled { opacity: 0.5; background: #f0f0f0; cursor: not-allowed; }
+        select:enabled { background: white; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; font-weight: bold; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #e7f3ff; color: #004085; }
+        button { padding: 10px 20px; margin: 5px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        .debug { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Dropdown Diagnostic Test</h1>
+    <p>This test diagnoses why the "Specific Model" dropdown is greyed out in the main interface.</p>
+
+    <div class="test-section">
+        <h3>Test 1: Basic Dropdown Functionality</h3>
+        <div class="form-group">
+            <label for="testProvider1">Provider Selection:</label>
+            <select id="testProvider1">
+                <option value="">Select Provider...</option>
+                <option value="Claude">Claude</option>
+                <option value="OpenAI">OpenAI</option>
+                <option value="Gemini">Gemini</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="testModel1">Specific Model:</label>
+            <select id="testModel1" disabled>
+                <option value="">First select a provider...</option>
+            </select>
+        </div>
+        
+        <div id="testResult1" class="result"></div>
+        <div id="debugInfo1" class="debug"></div>
+        
+        <button onclick="runDiagnostic()">Run Diagnostic Test</button>
+        <button onclick="manualTest('Claude')">Test Claude</button>
+        <button onclick="manualTest('OpenAI')">Test OpenAI</button>
+        <button onclick="manualTest('Gemini')">Test Gemini</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Model Data Inspection</h3>
+        <button onclick="inspectModelData()">Inspect Model Data</button>
+        <div id="inspectionResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Event Listener Check</h3>
+        <button onclick="testEventListeners()">Test Event Listeners</button>
+        <div id="eventResult" class="result"></div>
+    </div>
+
+    <script>
+        // Model data (same structure as main interface)
+        const modelData = {
+            "Claude": {
+                "Claude Opus 4.1": "claude-opus-4-1-20250805",
+                "Claude Opus 4": "claude-opus-4-20250514",
+                "Claude Sonnet 4": "claude-sonnet-4-20250514",
+                "Claude Sonnet 3.7": "claude-3-7-sonnet-20250219",
+                "Claude Sonnet 3.5 (New)": "claude-3-5-sonnet-20241022",
+                "Claude Haiku 3.5": "claude-3-5-haiku-20241022"
+            },
+            "Gemini": {
+                "Gemini 2.5 Pro": "gemini-2.5-pro",
+                "Gemini 2.5 Flash": "gemini-2.5-flash",
+                "Gemini 2.5 Flash-Lite": "gemini-2.5-flash-lite",
+                "Gemini 2.5 Pro Preview 03-25": "gemini-2.5-pro-preview-03-25",
+                "Gemini 2.5 Pro Preview 05-06": "gemini-2.5-pro-preview-05-06",
+                "Gemini 2.5 Pro Preview": "gemini-2.5-pro-preview-06-05"
+            },
+            "OpenAI": {
+                "Gpt 4.1 Nano": "gpt-4.1-nano",
+                "Gpt 4.1 Nano 2025 04 14": "gpt-4.1-nano-2025-04-14",
+                "Gpt 4.1 Mini": "gpt-4.1-mini",
+                "Gpt 4.1 Mini 2025 04 14": "gpt-4.1-mini-2025-04-14",
+                "Gpt 4.1": "gpt-4.1",
+                "Gpt 4.1 2025 04 14": "gpt-4.1-2025-04-14"
+            }
+        };
+
+        function log(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debugInfo1');
+            debugDiv.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+
+        function loadModels(provider, modelSelectId, resultId) {
+            log(`Loading models for provider: "${provider}"`);
+            
+            const modelSelect = document.getElementById(modelSelectId);
+            const resultDiv = document.getElementById(resultId);
+            
+            log(`Model select element found: ${modelSelect ? 'YES' : 'NO'}`);
+            log(`Result div found: ${resultDiv ? 'YES' : 'NO'}`);
+            
+            if (!provider) {
+                log('No provider selected - disabling dropdown');
+                modelSelect.disabled = true;
+                modelSelect.innerHTML = '<option value="">First select a provider...</option>';
+                if (resultDiv) resultDiv.innerHTML = '<span class="info">ℹ️ Please select a provider first</span>';
+                return;
+            }
+            
+            log(`Looking for models for provider: "${provider}"`);
+            log(`modelData exists: ${typeof modelData !== 'undefined'}`);
+            log(`Available providers: ${Object.keys(modelData).join(', ')}`);
+            
+            const models = modelData[provider];
+            log(`Models found for ${provider}: ${models ? 'YES' : 'NO'}`);
+            
+            if (!models) {
+                log(`ERROR: No models found for provider: ${provider}`);
+                modelSelect.innerHTML = '<option value="">No models available</option>';
+                modelSelect.disabled = true;
+                if (resultDiv) resultDiv.innerHTML = '<span class="error">❌ No models found for ' + provider + '</span>';
+                return;
+            }
+            
+            log(`Found ${Object.keys(models).length} models for ${provider}`);
+            
+            // Clear and populate dropdown
+            modelSelect.innerHTML = '<option value="">Select model...</option>';
+            
+            let modelCount = 0;
+            Object.entries(models).forEach(([displayName, modelId]) => {
+                log(`Adding model: "${displayName}" → "${modelId}"`);
+                const option = document.createElement('option');
+                option.value = modelId;
+                option.textContent = displayName;
+                modelSelect.appendChild(option);
+                modelCount++;
+            });
+            
+            // Enable dropdown
+            modelSelect.disabled = false;
+            log(`Successfully enabled dropdown with ${modelCount} models`);
+            
+            if (resultDiv) {
+                resultDiv.innerHTML = `<span class="success">✅ Successfully loaded ${modelCount} models for ${provider}</span>`;
+            }
+        }
+
+        function manualTest(provider) {
+            document.getElementById('debugInfo1').textContent = '';
+            log(`=== Manual Test: ${provider} ===`);
+            loadModels(provider, 'testModel1', 'testResult1');
+        }
+
+        function runDiagnostic() {
+            document.getElementById('debugInfo1').textContent = '';
+            log('=== Starting Diagnostic Test ===');
+            
+            // Test each provider
+            const providers = ['Claude', 'OpenAI', 'Gemini'];
+            
+            providers.forEach((provider, index) => {
+                setTimeout(() => {
+                    log(`\n--- Testing ${provider} ---`);
+                    loadModels(provider, 'testModel1', 'testResult1');
+                    
+                    if (index === providers.length - 1) {
+                        setTimeout(() => {
+                            log('\n=== Diagnostic Complete ===');
+                        }, 1000);
+                    }
+                }, index * 2000);
+            });
+        }
+
+        function inspectModelData() {
+            const resultDiv = document.getElementById('inspectionResult');
+            let html = '<div class="info"><strong>Model Data Inspection:</strong><br>';
+            
+            if (typeof modelData === 'undefined') {
+                html += '❌ modelData is undefined!<br>';
+            } else {
+                html += `✅ modelData exists<br>`;
+                html += `📊 Providers: ${Object.keys(modelData).length}<br>`;
+                
+                Object.entries(modelData).forEach(([provider, models]) => {
+                    html += `🔹 ${provider}: ${Object.keys(models).length} models<br>`;
+                });
+            }
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        function testEventListeners() {
+            const resultDiv = document.getElementById('eventResult');
+            const testProvider = document.getElementById('testProvider1');
+            
+            let html = '<div class="info"><strong>Event Listener Test:</strong><br>';
+            
+            // Check if event listener exists
+            const hasChangeListener = testProvider.onchange !== null;
+            html += `Provider change listener: ${hasChangeListener ? '✅ EXISTS' : '❌ MISSING'}<br>`;
+            
+            // Test manual trigger
+            testProvider.value = 'Claude';
+            testProvider.dispatchEvent(new Event('change'));
+            
+            setTimeout(() => {
+                const modelSelect = document.getElementById('testModel1');
+                const isEnabled = !modelSelect.disabled;
+                html += `Model dropdown enabled after change: ${isEnabled ? '✅ YES' : '❌ NO'}<br>`;
+                html += '</div>';
+                resultDiv.innerHTML = html;
+            }, 500);
+        }
+
+        // Set up event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            log('DOM loaded - setting up event listeners');
+            
+            document.getElementById('testProvider1').addEventListener('change', function() {
+                log(`Provider changed to: "${this.value}"`);
+                loadModels(this.value, 'testModel1', 'testResult1');
+            });
+            
+            log('Event listeners set up successfully');
+        });
+    </script>
+</body>
+</html>
