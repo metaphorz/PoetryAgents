@@ -93,14 +93,15 @@ def convert_web_data_to_config(data):
     
     # Map poetry forms that need length specification
     form = data['form']
-    if form in ['haiku', 'sonnet', 'villanelle', 'limerick', 'tanka']:
+    if form in ['haiku', 'sonnet', 'villanelle', 'limerick', 'tanka', 'sestina']:
         # Fixed forms have predetermined lengths
         fixed_lengths = {
             'haiku': 3,
             'sonnet': 14,
             'villanelle': 19,
             'limerick': 5,
-            'tanka': 5
+            'tanka': 5,
+            'sestina': 39
         }
         poem_length = fixed_lengths[form]
         length_unit = 'lines'
@@ -115,6 +116,15 @@ def convert_web_data_to_config(data):
         elif form == 'ghazal':
             poem_length = 7  # 7 couplets
             length_unit = 'couplets'
+        elif form == 'heroic_couplet':
+            poem_length = 10  # 10 couplets
+            length_unit = 'couplets'
+        elif form == 'pindaric_ode':
+            poem_length = 4  # 4 stanzas
+            length_unit = 'stanzas'
+        elif form == 'quatrain':
+            poem_length = 5  # 5 quatrains
+            length_unit = 'quatrains'
         else:
             poem_length = 4  # Default
             length_unit = 'lines'
